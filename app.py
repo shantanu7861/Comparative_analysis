@@ -810,10 +810,49 @@ def main():
                         for _, product in brand_products.iterrows():
                             st.markdown('<div class="product-card">', unsafe_allow_html=True)
                             
-                            try:
-                                st.image(product['Image Link'], use_container_width=True)
-                            except:
-                                st.image("https://via.placeholder.com/300x300.png?text=No+Image", use_container_width=True)
+                            # Image handling with fallback
+                            image_url = product.get('Image Link', '')
+                            if pd.notna(image_url) and str(image_url).strip():
+                                # Clean the URL
+                                image_url = str(image_url).strip()
+                                
+                                # Try to display the image
+                                try:
+                                    st.image(image_url, use_container_width=True)
+                                except Exception as e:
+                                    # If image fails, show placeholder with product info
+                                    st.markdown(f"""
+                                    <div style="background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); 
+                                                height: 220px; 
+                                                border-radius: 10px; 
+                                                display: flex; 
+                                                align-items: center; 
+                                                justify-content: center;
+                                                margin-bottom: 0.8rem;
+                                                color: #6366f1;
+                                                font-weight: 600;
+                                                text-align: center;
+                                                padding: 1rem;">
+                                        📷<br>Image unavailable
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                            else:
+                                # No image URL provided
+                                st.markdown(f"""
+                                <div style="background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); 
+                                            height: 220px; 
+                                            border-radius: 10px; 
+                                            display: flex; 
+                                            align-items: center; 
+                                            justify-content: center;
+                                            margin-bottom: 0.8rem;
+                                            color: #6366f1;
+                                            font-weight: 600;
+                                            text-align: center;
+                                            padding: 1rem;">
+                                    📷<br>No image
+                                </div>
+                                """, unsafe_allow_html=True)
                             
                             st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
