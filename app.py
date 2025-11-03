@@ -225,19 +225,8 @@ def load_data(file_path=None):
         # Clean column names
         df.columns = df.columns.str.strip()
         
-        # Convert price columns to numeric
+        # Convert price column to numeric
         df['Selling Price'] = pd.to_numeric(df['Selling Price'].astype(str).str.replace('RM', '').str.replace(',', '').str.strip(), errors='coerce')
-        df['Mrp'] = pd.to_numeric(df['Mrp'].astype(str).str.replace('RM', '').str.replace(',', '').str.strip(), errors='coerce')
-        
-        # Fill NaN values in Mrp with Selling Price (if no discount info)
-        df['Mrp'] = df['Mrp'].fillna(df['Selling Price'])
-        
-        # Ensure Mrp is always >= Selling Price
-        df['Mrp'] = df[['Mrp', 'Selling Price']].max(axis=1)
-        
-        # Calculate discount percentage
-        df['Discount %'] = ((df['Mrp'] - df['Selling Price']) / df['Mrp'] * 100).round(2)
-        df['Discount %'] = df['Discount %'].fillna(0)
         
         # Clean text columns
         df['Brand'] = df['Brand'].astype(str).str.strip()
@@ -267,14 +256,11 @@ def create_dummy_data():
         'Brand': np.random.choice(brands, n_products),
         'Title': [f'Stylish {np.random.choice(categories)} - Style {i}' for i in range(n_products)],
         'Selling Price': np.random.uniform(150, 350, n_products).round(2),
-        'Mrp': np.random.uniform(200, 450, n_products).round(2),
         'Category': np.random.choice(categories, n_products),
         'Market place': np.random.choice(marketplaces, n_products)
     }
     
     df = pd.DataFrame(data)
-    df['Mrp'] = df[['Mrp', 'Selling Price']].max(axis=1)
-    df['Discount %'] = ((df['Mrp'] - df['Selling Price']) / df['Mrp'] * 100).round(2)
     
     return df
 
@@ -287,9 +273,7 @@ def calculate_metrics(df, brands):
         brand_data = df[df['Brand'] == brand]
         metrics[brand] = {
             'avg_price': brand_data['Selling Price'].mean(),
-            'avg_discount': brand_data['Discount %'].mean(),
-            'total_products': len(brand_data),
-            'avg_mrp': brand_data['Mrp'].mean()
+            'total_products': len(brand_data)
         }
     
     return metrics
@@ -359,7 +343,6 @@ def generate_ai_insights(df, metrics, our_brands, competitor_brands, selected_ca
         
         {brand} Metrics:
         - Average Selling Price: {currency} {metrics[brand]['avg_price']:.2f}
-        - Average Discount: {metrics[brand]['avg_discount']:.1f}%
         - Total Products: {metrics[brand]['total_products']}
         """
         
@@ -373,7 +356,6 @@ def generate_ai_insights(df, metrics, our_brands, competitor_brands, selected_ca
                 data_summary += f"""
         {brand}:
           - Avg Price: {currency} {metrics[brand]['avg_price']:.2f}
-          - Avg Discount: {metrics[brand]['avg_discount']:.1f}%
           - Products: {metrics[brand]['total_products']}
         """
         
@@ -403,9 +385,9 @@ def generate_ai_insights(df, metrics, our_brands, competitor_brands, selected_ca
 Provide 5-6 highly actionable pricing and strategic insights based on the competitive data. Focus on:
 
 1. **Pricing Strategy**: Should we increase/decrease prices? By how much? Why?
-2. **Discount Optimization**: Are our discounts too high or too low compared to competitors?
-3. **Market Positioning**: How do our prices position us in the market (value/mid-range/premium)?
-4. **Category Opportunities**: Which categories should we focus on based on pricing gaps?
+2. **Market Positioning**: How do our prices position us in the market (value/mid-range/premium)?
+3. **Category Opportunities**: Which categories should we focus on based on pricing gaps?
+4. **Competitive Analysis**: How do we compare to specific competitors?
 5. **Immediate Actions**: What specific actions should be taken this week/month?
 6. **Seasonal Recommendations**: Given the current date, suggest relevant seasonal pricing strategies
 
@@ -589,12 +571,6 @@ def main():
                     )
                     
                     st.metric(
-                        "Avg Discount",
-                        f"{brand_metrics['avg_discount']:.1f}%",
-                        help="Average discount percentage"
-                    )
-                    
-                    st.metric(
                         "Total Products",
                         brand_metrics['total_products'],
                         help="Number of products in dataset"
@@ -610,7 +586,6 @@ def main():
                 with cols[idx]:
                     st.markdown(f"**{brand}**")
                     st.metric("Avg Price", f"{currency} {metrics[brand]['avg_price']:.2f}")
-                    st.metric("Avg Discount", f"{metrics[brand]['avg_discount']:.1f}%")
                     st.metric("Products", metrics[brand]['total_products'])
         
         # Price gap breakdown
@@ -644,7 +619,7 @@ def main():
                 {'Brand': brand, 'Avg Price': metrics[brand]['avg_price'], 
                  'Type': 'Our Brand' if brand in selected_our_brands else 'Competitor'}
                 for brand in all_selected_brands
-            ]).sort_values('Avg Price', ascending=False)  # Sort in DESCENDING order
+            ]).sort_values('Avg Price', ascending=False)
             
             fig_price = go.Figure()
             
@@ -682,7 +657,6 @@ def main():
                 textfont=dict(size=12, weight='bold')
             ))
             
-            # Set x-axis order to maintain descending sort
             fig_price.update_layout(
                 height=450,
                 xaxis_title="",
@@ -699,54 +673,53 @@ def main():
             st.plotly_chart(fig_price, use_container_width=True)
         
         with chart_col2:
-            st.markdown("#### Average Discount by Brand")
-            discount_data = pd.DataFrame([
-                {'Brand': brand, 'Avg Discount': metrics[brand]['avg_discount'],
+            st.markdown("#### Product Count by Brand")
+            product_data = pd.DataFrame([
+                {'Brand': brand, 'Product Count': metrics[brand]['total_products'],
                  'Type': 'Our Brand' if brand in selected_our_brands else 'Competitor'}
                 for brand in all_selected_brands
-            ]).sort_values('Avg Discount', ascending=False)  # Sort in DESCENDING order
+            ]).sort_values('Product Count', ascending=False)
             
-            fig_discount = go.Figure()
+            fig_products = go.Figure()
             
             # Our brands
-            our_brand_disc = discount_data[discount_data['Type'] == 'Our Brand']
-            fig_discount.add_trace(go.Bar(
-                x=our_brand_disc['Brand'],
-                y=our_brand_disc['Avg Discount'],
+            our_brand_prod = product_data[product_data['Type'] == 'Our Brand']
+            fig_products.add_trace(go.Bar(
+                x=our_brand_prod['Brand'],
+                y=our_brand_prod['Product Count'],
                 name='Our Brands',
                 marker=dict(
-                    color=our_brand_disc['Avg Discount'],
+                    color=our_brand_prod['Product Count'],
                     colorscale='Pinkyl',
                     showscale=False,
                     line=dict(color='rgb(236, 72, 153)', width=2)
                 ),
-                text=[f'{val:.1f}%' for val in our_brand_disc['Avg Discount']],
+                text=[f'{val}' for val in our_brand_prod['Product Count']],
                 textposition='outside',
                 textfont=dict(size=12, weight='bold')
             ))
             
             # Competitors
-            comp_disc = discount_data[discount_data['Type'] == 'Competitor']
-            fig_discount.add_trace(go.Bar(
-                x=comp_disc['Brand'],
-                y=comp_disc['Avg Discount'],
+            comp_prod = product_data[product_data['Type'] == 'Competitor']
+            fig_products.add_trace(go.Bar(
+                x=comp_prod['Brand'],
+                y=comp_prod['Product Count'],
                 name='Competitors',
                 marker=dict(
-                    color=comp_disc['Avg Discount'],
+                    color=comp_prod['Product Count'],
                     colorscale='Teal',
                     showscale=False,
                     line=dict(color='rgb(6, 182, 212)', width=2)
                 ),
-                text=[f'{val:.1f}%' for val in comp_disc['Avg Discount']],
+                text=[f'{val}' for val in comp_prod['Product Count']],
                 textposition='outside',
                 textfont=dict(size=12, weight='bold')
             ))
             
-            # Set x-axis order to maintain descending sort
-            fig_discount.update_layout(
+            fig_products.update_layout(
                 height=450,
                 xaxis_title="",
-                yaxis_title="Average Discount (%)",
+                yaxis_title="Product Count",
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 font=dict(size=12),
@@ -754,9 +727,9 @@ def main():
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 margin=dict(t=80, b=60, l=60, r=40),
                 yaxis=dict(gridcolor='rgba(128,128,128,0.2)', zeroline=False),
-                xaxis=dict(categoryorder='array', categoryarray=discount_data['Brand'].tolist())
+                xaxis=dict(categoryorder='array', categoryarray=product_data['Brand'].tolist())
             )
-            st.plotly_chart(fig_discount, use_container_width=True)
+            st.plotly_chart(fig_products, use_container_width=True)
         
         # Price Distribution Comparison
         st.markdown("---")
@@ -829,7 +802,7 @@ def main():
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Get ALL products for this brand (removed .head(5) limit)
+                    # Get ALL products for this brand
                     brand_products = filtered_df[filtered_df['Brand'] == brand]
                     
                     if len(brand_products) > 0:
@@ -845,9 +818,6 @@ def main():
                             st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='product-price'>{currency} {product['Selling Price']:.2f}</div>", unsafe_allow_html=True)
-                            
-                            if product['Discount %'] > 0:
-                                st.markdown(f"<small style='color: #9ca3af;'>~~{currency} {product['Mrp']:.2f}~~ <span style='color: #10b981; font-weight: 600;'>({product['Discount %']:.0f}% off)</span></small>", unsafe_allow_html=True)
                             
                             st.markdown(f"<a href='{product['Link']}' class='product-link' target='_blank'>View Product →</a>", unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
