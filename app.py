@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 from pathlib import Path
-import openai
 from openai import OpenAI
 from datetime import datetime
 
@@ -203,66 +202,98 @@ st.markdown("""
         padding: 10px 20px;
         font-weight: 600;
     }
+    
+    /* Upload prompt styling */
+    .upload-prompt {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        padding: 3rem;
+        border-radius: 15px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        margin: 2rem 0;
+    }
+    
+    .upload-prompt h2 {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .upload-prompt p {
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .required-columns {
+        background: rgba(255, 255, 255, 0.15);
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-top: 1.5rem;
+        text-align: left;
+    }
+    
+    .required-columns h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+    
+    .required-columns ul {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .required-columns li {
+        padding: 0.5rem 0;
+        font-size: 0.95rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ========== DATA LOADING FUNCTION ==========
 @st.cache_data
-def load_data(file_path=None):
-    """Load and preprocess the Excel data"""
+def load_data(uploaded_file):
+    """Load and preprocess the Excel data from uploaded file"""
     try:
-        if file_path is None:
-            # Try to load default file
-            default_path = Path("data.xlsx")
-            if default_path.exists():
-                df = pd.read_excel(default_path, sheet_name="Sheet1")
-            else:
-                # Create dummy data for demonstration
-                return create_dummy_data()
-        else:
-            df = pd.read_excel(file_path, sheet_name="Sheet1")
+        # Read the Excel file
+        df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
         
-        # Clean column names
+        # Clean column names (strip whitespace)
         df.columns = df.columns.str.strip()
         
+        # Validate required columns
+        required_columns = ['Link', 'Image Link', 'Brand', 'Title', 'Selling Price', 'Category', 'Market place']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
+            st.error(f"❌ Missing required columns: {', '.join(missing_columns)}")
+            st.info(f"📋 Available columns in your file: {', '.join(df.columns.tolist())}")
+            return None
+        
         # Convert price column to numeric
-        df['Selling Price'] = pd.to_numeric(df['Selling Price'].astype(str).str.replace('RM', '').str.replace(',', '').str.strip(), errors='coerce')
+        df['Selling Price'] = pd.to_numeric(
+            df['Selling Price'].astype(str).str.replace('RM', '').str.replace('$', '').str.replace(',', '').str.strip(), 
+            errors='coerce'
+        )
         
         # Clean text columns
         df['Brand'] = df['Brand'].astype(str).str.strip()
         df['Category'] = df['Category'].astype(str).str.strip()
         df['Market place'] = df['Market place'].astype(str).str.strip()
+        df['Title'] = df['Title'].astype(str).str.strip()
+        df['Link'] = df['Link'].astype(str).str.strip()
+        df['Image Link'] = df['Image Link'].astype(str).str.strip()
         
         # Remove rows with missing critical data
         df = df.dropna(subset=['Brand', 'Selling Price'])
         
+        # Remove rows where price is 0 or negative
+        df = df[df['Selling Price'] > 0]
+        
         return df
     
     except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return create_dummy_data()
-
-def create_dummy_data():
-    """Create dummy data for demonstration"""
-    np.random.seed(42)
-    brands = ['London Rag', 'Rag & Co', 'Steve Madden', 'Aldo', 'Nine West', 'Call It Spring']
-    categories = ['Mary Jane', 'Loafer', 'Boot', 'Heels', 'Sandals']
-    marketplaces = ['Zalora', "Macy's", 'Namshi', 'Amazon']
-    
-    n_products = 60
-    data = {
-        'Link': [f'https://example.com/product_{i}' for i in range(n_products)],
-        'Image Link': [f'https://via.placeholder.com/300x400.png?text=Product+{i}' for i in range(n_products)],
-        'Brand': np.random.choice(brands, n_products),
-        'Title': [f'Stylish {np.random.choice(categories)} - Style {i}' for i in range(n_products)],
-        'Selling Price': np.random.uniform(150, 350, n_products).round(2),
-        'Category': np.random.choice(categories, n_products),
-        'Market place': np.random.choice(marketplaces, n_products)
-    }
-    
-    df = pd.DataFrame(data)
-    
-    return df
+        st.error(f"❌ Error loading data: {str(e)}")
+        return None
 
 # ========== ANALYSIS FUNCTIONS ==========
 def calculate_metrics(df, brands):
@@ -428,11 +459,45 @@ def main():
         st.markdown("### 📊 Dashboard Controls")
         
         # File uploader
-        uploaded_file = st.file_uploader("Upload Excel File", type=['xlsx', 'xls'], help="Upload your competitive data file")
+        uploaded_file = st.file_uploader(
+            "📁 Upload Excel File", 
+            type=['xlsx', 'xls'], 
+            help="Upload your competitive data file with Sheet1 containing required columns"
+        )
+        
+        if uploaded_file is None:
+            st.markdown("""
+            <div class="required-columns">
+                <h4>📋 Required Columns in Sheet1:</h4>
+                <ul>
+                    <li>✓ <b>Link</b> - Product URL</li>
+                    <li>✓ <b>Image Link</b> - Product image URL</li>
+                    <li>✓ <b>Brand</b> - Brand name</li>
+                    <li>✓ <b>Title</b> - Product title</li>
+                    <li>✓ <b>Selling Price</b> - Price (numeric)</li>
+                    <li>✓ <b>Category</b> - Product category</li>
+                    <li>✓ <b>Market place</b> - Marketplace name</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.info("👆 Upload a file to begin analysis")
+            return
         
         st.markdown("---")
         
+        # Load data
+        df = load_data(uploaded_file)
+        
+        if df is None:
+            st.error("❌ Failed to load data. Please check your file format and column names.")
+            return
+        
+        st.success(f"✅ Loaded {len(df)} products")
+        st.info(f"📊 Found {df['Brand'].nunique()} unique brands")
+        
         # Currency selector
+        st.markdown("---")
         st.markdown("### 💱 Currency")
         currency = st.selectbox("Select Currency", ["RM", "$", "€", "£", "₹"], index=0)
         
@@ -454,28 +519,22 @@ def main():
         
         st.markdown("---")
         
-        # Load data
-        if uploaded_file is not None:
-            df = load_data(uploaded_file)
-        else:
-            df = load_data()
-        
-        st.success(f"✅ Loaded {len(df)} products")
+        # Get all unique brands from data
+        all_brands_in_data = sorted(df['Brand'].unique().tolist())
         
         # Our Brands Filter
         st.markdown("### 🏷️ Our Brands")
-        our_brand_options = ['London Rag', 'Rag & Co']
-        available_our_brands = [b for b in our_brand_options if b in df['Brand'].unique()]
+        st.info("Select brand(s) that represent YOUR company")
         
         selected_our_brands = st.multiselect(
             "Select Our Brands",
-            available_our_brands,
-            default=available_our_brands,
-            help="Select one or both of our brands for analysis"
+            all_brands_in_data,
+            default=[],
+            help="Select one or more brands that represent your company"
         )
         
         if not selected_our_brands:
-            st.warning("⚠️ Please select at least one of our brands")
+            st.warning("⚠️ Please select at least one of your brands")
             return
         
         st.markdown("---")
@@ -499,8 +558,7 @@ def main():
             filtered_df = filtered_df[filtered_df['Market place'] == selected_marketplace]
         
         # Competitor brand selection
-        all_brands = sorted(filtered_df['Brand'].unique().tolist())
-        competitor_brands = [b for b in all_brands if b not in our_brand_options]
+        competitor_brands = [b for b in sorted(filtered_df['Brand'].unique().tolist()) if b not in selected_our_brands]
         
         # Default select top 3 competitors
         default_competitors = competitor_brands[:3] if len(competitor_brands) >= 3 else competitor_brands
