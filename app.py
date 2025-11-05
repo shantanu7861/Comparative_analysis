@@ -93,21 +93,35 @@ st.markdown("""
     /* Product card styling */
     .product-card {
         background: white;
-        border-radius: 12px;
-        padding: 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 10px;
+        padding: 0.8rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         transition: transform 0.2s, box-shadow 0.2s;
-        height: 100%;
-        margin-bottom: 1rem;
+        margin-bottom: 0.8rem;
     }
     
     .product-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    }
+    
+    .product-image-container {
+        width: 100%;
+        height: 150px;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 0.6rem;
+        background: #f3f4f6;
+    }
+    
+    .product-image-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
     
     .product-brand {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 700;
         text-transform: uppercase;
         color: #8b5cf6;
@@ -116,39 +130,42 @@ st.markdown("""
     }
     
     .product-title {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
         font-weight: 600;
         margin-top: 0.3rem;
         color: #1f2937;
-        height: 40px;
+        height: 35px;
         overflow: hidden;
-        line-height: 1.3;
+        line-height: 1.2;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
     }
     
     .product-price {
         color: #6366f1;
-        font-size: 1.3rem;
+        font-size: 1.1rem;
         font-weight: 800;
-        margin-top: 0.5rem;
+        margin-top: 0.4rem;
     }
     
     .product-link {
         display: inline-block;
-        margin-top: 0.6rem;
-        padding: 0.6rem 1.2rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem 1rem;
         background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
         color: white;
         text-decoration: none;
-        border-radius: 8px;
-        font-size: 0.85rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
         font-weight: 600;
         transition: all 0.3s;
-        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
     }
     
     .product-link:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        box-shadow: 0 3px 10px rgba(99, 102, 241, 0.4);
         background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
     }
     
