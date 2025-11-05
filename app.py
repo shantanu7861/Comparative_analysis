@@ -825,7 +825,7 @@ def main():
                             """, unsafe_allow_html=True)
                         
                         # Subcategory badge
-                        st.markdown(f"<div class='product-brand' style='color: #10b981;'>🏷️ {product['Subcategory']}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='product-brand' style='color: #10b981;'>🏷️ {product['Brand']}</div>", unsafe_allow_html=True)
                         
                         # Product title
                         st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
