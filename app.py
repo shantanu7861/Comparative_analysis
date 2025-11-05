@@ -7,6 +7,7 @@ import numpy as np
 from pathlib import Path
 from openai import OpenAI
 from datetime import datetime
+import time
 
 # ========== PAGE CONFIGURATION ==========
 st.set_page_config(
@@ -176,22 +177,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
     }
     
-    /* Insight box styling */
-    .insight-box {
-        background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
-        color: white;
-        padding: 1.8rem;
-        border-radius: 12px;
-        margin-top: 1.2rem;
-        box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .insight-box h3 {
-        margin-top: 0;
-        font-size: 1.5rem;
-    }
-    
     /* Tab styling */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
@@ -261,7 +246,7 @@ def load_data(uploaded_file):
         df.columns = df.columns.str.strip()
         
         # Validate required columns
-        required_columns = ['Link', 'Image Link', 'Brand', 'Title', 'Selling Price', 'Category', 'Market place']
+        required_columns = ['Link', 'Image Link', 'Brand', 'Title', 'Selling Price', 'Market place']
         missing_columns = [col for col in required_columns if col not in df.columns]
         
         if missing_columns:
@@ -277,11 +262,16 @@ def load_data(uploaded_file):
         
         # Clean text columns
         df['Brand'] = df['Brand'].astype(str).str.strip()
-        df['Category'] = df['Category'].astype(str).str.strip()
         df['Market place'] = df['Market place'].astype(str).str.strip()
         df['Title'] = df['Title'].astype(str).str.strip()
         df['Link'] = df['Link'].astype(str).str.strip()
         df['Image Link'] = df['Image Link'].astype(str).str.strip()
+        
+        # Add Category column if it doesn't exist
+        if 'Category' not in df.columns:
+            df['Category'] = None
+        else:
+            df['Category'] = df['Category'].astype(str).str.strip()
         
         # Remove rows with missing critical data
         df = df.dropna(subset=['Brand', 'Selling Price'])
@@ -294,6 +284,102 @@ def load_data(uploaded_file):
     except Exception as e:
         st.error(f"❌ Error loading data: {str(e)}")
         return None
+
+# ========== CATEGORIZATION FUNCTION ==========
+def categorize_products_with_ai(df, api_key):
+    """Use OpenAI to categorize products based on their titles"""
+    if not api_key:
+        st.warning("⚠️ OpenAI API key required for automatic categorization")
+        return df
+    
+    try:
+        client = OpenAI(api_key=api_key)
+        
+        # Get products that need categorization
+        uncategorized = df[df['Category'].isna() | (df['Category'] == 'None') | (df['Category'] == '')]
+        
+        if len(uncategorized) == 0:
+            return df
+        
+        # Process in batches of 20 for efficiency
+        batch_size = 20
+        total_batches = (len(uncategorized) + batch_size - 1) // batch_size
+        
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        for batch_num, i in enumerate(range(0, len(uncategorized), batch_size)):
+            batch = uncategorized.iloc[i:i+batch_size]
+            titles = batch['Title'].tolist()
+            
+            status_text.text(f"Categorizing batch {batch_num + 1}/{total_batches}...")
+            
+            # Create prompt for batch categorization
+            prompt = f"""Categorize these fashion product titles into main category and subcategory.
+
+Product titles:
+{chr(10).join([f"{idx+1}. {title}" for idx, title in enumerate(titles)])}
+
+For each product, provide:
+1. Main Category (e.g., Boots, Sandals, Heels, Flats, Sneakers, Bags, Accessories)
+2. Subcategory (be specific, e.g., Knee-High Boots, Ankle Boots, Block Heel Sandals, Stiletto Heels, Crossbody Bags)
+
+Respond in this exact format for each product:
+1. Main: [Category] | Sub: [Subcategory]
+2. Main: [Category] | Sub: [Subcategory]
+...
+
+Be specific and consistent with subcategories."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a fashion product categorization expert. Provide accurate, specific categories and subcategories for fashion products."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=500,
+                temperature=0.3
+            )
+            
+            # Parse response
+            lines = response.choices[0].message.content.strip().split('\n')
+            
+            for idx, line in enumerate(lines):
+                if idx >= len(batch):
+                    break
+                    
+                try:
+                    # Parse "Main: X | Sub: Y" format
+                    if '|' in line:
+                        parts = line.split('|')
+                        main_part = parts[0].split('Main:')[-1].strip()
+                        sub_part = parts[1].split('Sub:')[-1].strip()
+                        
+                        # Combine as "Main - Subcategory"
+                        category = f"{main_part} - {sub_part}"
+                        
+                        # Update the dataframe
+                        original_idx = batch.iloc[idx].name
+                        df.at[original_idx, 'Category'] = category
+                except:
+                    # If parsing fails, use a generic category
+                    original_idx = batch.iloc[idx].name
+                    df.at[original_idx, 'Category'] = "Uncategorized"
+            
+            # Update progress
+            progress_bar.progress((batch_num + 1) / total_batches)
+            
+            # Add a small delay to respect rate limits
+            time.sleep(0.5)
+        
+        progress_bar.empty()
+        status_text.empty()
+        
+        return df
+    
+    except Exception as e:
+        st.error(f"Error during AI categorization: {str(e)}")
+        return df
 
 # ========== ANALYSIS FUNCTIONS ==========
 def calculate_metrics(df, brands):
@@ -349,100 +435,6 @@ def calculate_individual_price_gaps(metrics, our_brands, competitor_brands, curr
     
     return pd.DataFrame(price_gaps)
 
-def generate_ai_insights(df, metrics, our_brands, competitor_brands, selected_category, selected_marketplace, api_key, currency):
-    """Generate AI-powered insights using OpenAI GPT-4o-mini"""
-    if not api_key:
-        return ["Please provide an OpenAI API key to generate AI-powered insights."]
-    
-    try:
-        client = OpenAI(api_key=api_key)
-        
-        current_date = datetime.now().strftime("%B %d, %Y")
-        
-        # Prepare data summary for AI
-        data_summary = f"""
-        Today's date: {current_date}
-        
-        Analyze this competitive pricing data for our fashion brands:
-        
-        OUR BRANDS: {', '.join(our_brands)}
-        """
-        
-        for brand in our_brands:
-            if brand in metrics:
-                data_summary += f"""
-        
-        {brand} Metrics:
-        - Average Selling Price: {currency} {metrics[brand]['avg_price']:.2f}
-        - Total Products: {metrics[brand]['total_products']}
-        """
-        
-        data_summary += f"""
-        
-        COMPETITORS: {', '.join(competitor_brands)}
-        """
-        
-        for brand in competitor_brands:
-            if brand in metrics:
-                data_summary += f"""
-        {brand}:
-          - Avg Price: {currency} {metrics[brand]['avg_price']:.2f}
-          - Products: {metrics[brand]['total_products']}
-        """
-        
-        # Add filter context
-        data_summary += f"""
-        
-        Current Analysis Filters:
-        - Category: {selected_category}
-        - Marketplace: {selected_marketplace}
-        """
-        
-        # Category distribution
-        if 'Category' in df.columns:
-            for our_brand in our_brands:
-                if our_brand in df['Brand'].values:
-                    brand_data = df[df['Brand'] == our_brand]
-                    data_summary += f"\n\nCategory Distribution for {our_brand}:\n"
-                    cat_counts = brand_data['Category'].value_counts().head(3)
-                    for cat, count in cat_counts.items():
-                        data_summary += f"  - {cat}: {count} products\n"
-        
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": f"""You are an expert fashion retail pricing strategist. Today is {current_date}. 
-
-Provide 5-6 highly actionable pricing and strategic insights based on the competitive data. Focus on:
-
-1. **Pricing Strategy**: Should we increase/decrease prices? By how much? Why?
-2. **Market Positioning**: How do our prices position us in the market (value/mid-range/premium)?
-3. **Category Opportunities**: Which categories should we focus on based on pricing gaps?
-4. **Competitive Analysis**: How do we compare to specific competitors?
-5. **Immediate Actions**: What specific actions should be taken this week/month?
-6. **Seasonal Recommendations**: Given the current date, suggest relevant seasonal pricing strategies
-
-Each insight should be:
-- Specific with numbers and percentages
-- Actionable with clear recommendations
-- Business-focused (revenue, margins, market share)
-- Consider current market conditions and timing
-- Use emojis for visual appeal
-
-Format: Start each insight with an emoji and bold title, followed by 2-3 sentences with specific recommendations."""},
-                {"role": "user", "content": data_summary}
-            ],
-            max_tokens=800,
-            temperature=0.7
-        )
-        
-        ai_insights = response.choices[0].message.content.strip().split('\n\n')
-        return [insight.strip() for insight in ai_insights if insight.strip()]
-    
-    except Exception as e:
-        st.warning(f"AI insights unavailable: {str(e)}")
-        return [f"⚠️ Unable to generate AI insights. Error: {str(e)}"]
-
 # ========== MAIN APP ==========
 def main():
     # Header
@@ -475,14 +467,36 @@ def main():
                     <li>✓ <b>Brand</b> - Brand name</li>
                     <li>✓ <b>Title</b> - Product title</li>
                     <li>✓ <b>Selling Price</b> - Price (numeric)</li>
-                    <li>✓ <b>Category</b> - Product category</li>
                     <li>✓ <b>Market place</b> - Marketplace name</li>
+                    <li>• <b>Category</b> - (Optional, will be auto-generated)</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
             
             st.info("👆 Upload a file to begin analysis")
             return
+        
+        st.markdown("---")
+        
+        # Currency selector
+        st.markdown("### 💱 Currency")
+        currency = st.selectbox("Select Currency", ["RM", "$", "€", "£", "₹"], index=0)
+        
+        st.markdown("---")
+        
+        # OpenAI API Key input
+        st.markdown("### 🤖 AI Features")
+        api_key = st.text_input(
+            "OpenAI API Key",
+            type="password",
+            help="Required for automatic product categorization",
+            placeholder="sk-..."
+        )
+        
+        if api_key:
+            st.success("✅ AI categorization enabled")
+        else:
+            st.warning("⚠️ Add API key to auto-categorize products")
         
         st.markdown("---")
         
@@ -493,31 +507,14 @@ def main():
             st.error("❌ Failed to load data. Please check your file format and column names.")
             return
         
+        # Auto-categorize products if API key is provided
+        if api_key:
+            with st.spinner("🤖 Categorizing products with AI..."):
+                df = categorize_products_with_ai(df, api_key)
+                st.success("✅ Products categorized!")
+        
         st.success(f"✅ Loaded {len(df)} products")
         st.info(f"📊 Found {df['Brand'].nunique()} unique brands")
-        
-        # Currency selector
-        st.markdown("---")
-        st.markdown("### 💱 Currency")
-        currency = st.selectbox("Select Currency", ["RM", "$", "€", "£", "₹"], index=0)
-        
-        st.markdown("---")
-        
-        # OpenAI API Key input
-        st.markdown("### 🤖 AI Insights")
-        api_key = st.text_input(
-            "OpenAI API Key",
-            type="password",
-            help="Enter your OpenAI API key for AI-powered pricing insights",
-            placeholder="sk-..."
-        )
-        
-        if api_key:
-            st.success("✅ AI insights enabled")
-        else:
-            st.info("ℹ️ Add API key for AI insights")
-        
-        st.markdown("---")
         
         # Get all unique brands from data
         all_brands_in_data = sorted(df['Brand'].unique().tolist())
@@ -543,7 +540,7 @@ def main():
         st.markdown("### 🔍 Filters")
         
         # Category filter
-        all_categories = ['All'] + sorted(df['Category'].unique().tolist())
+        all_categories = ['All'] + sorted(df['Category'].dropna().unique().tolist())
         selected_category = st.selectbox("Category", all_categories)
         
         # Marketplace filter
@@ -604,7 +601,7 @@ def main():
     metrics = calculate_metrics(filtered_df, all_selected_brands)
     
     # ========== TABS ==========
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Key Metrics", "📈 Charts & Analysis", "🖼️ Product Gallery", "💡 Strategic Insights"])
+    tab1, tab2, tab3 = st.tabs(["📊 Key Metrics", "📈 Charts & Analysis", "🖼️ Product Gallery"])
     
     # ========== TAB 1: KEY METRICS ==========
     with tab1:
@@ -846,39 +843,76 @@ def main():
     with tab3:
         st.markdown("### 🖼️ Product Showcase")
         
-        # Organize products by brand in columns
-        if len(all_selected_brands) > 0:
-            # Create columns for each brand
-            brand_cols = st.columns(len(all_selected_brands))
+        # Group products by category
+        if 'Category' in filtered_df.columns and filtered_df['Category'].notna().any():
+            # Get unique categories sorted
+            categories = sorted(filtered_df['Category'].dropna().unique())
             
-            for idx, brand in enumerate(all_selected_brands):
-                with brand_cols[idx]:
-                    # Brand header
+            if len(categories) > 0:
+                for category in categories:
                     st.markdown(f"""
-                    <div class="brand-column-header">
-                        {brand}
+                    <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                                color: white;
+                                padding: 1.5rem;
+                                border-radius: 12px;
+                                margin: 2rem 0 1rem 0;
+                                text-align: center;
+                                font-weight: 700;
+                                font-size: 1.4rem;
+                                box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
+                        📂 {category}
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Get ALL products for this brand
-                    brand_products = filtered_df[filtered_df['Brand'] == brand]
+                    # Get products in this category
+                    category_products = filtered_df[filtered_df['Category'] == category]
                     
-                    if len(brand_products) > 0:
-                        # Display all products in vertical layout
-                        for _, product in brand_products.iterrows():
-                            st.markdown('<div class="product-card">', unsafe_allow_html=True)
+                    # Group by brand
+                    brands_in_category = category_products['Brand'].unique()
+                    
+                    # Create columns for each brand
+                    brand_cols = st.columns(min(len(brands_in_category), 4))
+                    
+                    for idx, brand in enumerate(brands_in_category):
+                        col_idx = idx % len(brand_cols)
+                        with brand_cols[col_idx]:
+                            # Brand header
+                            st.markdown(f"""
+                            <div class="brand-column-header">
+                                {brand}
+                            </div>
+                            """, unsafe_allow_html=True)
                             
-                            # Image handling with fallback
-                            image_url = product.get('Image Link', '')
-                            if pd.notna(image_url) and str(image_url).strip():
-                                # Clean the URL
-                                image_url = str(image_url).strip()
+                            # Get products for this brand and category
+                            brand_products = category_products[category_products['Brand'] == brand]
+                            
+                            # Display products
+                            for _, product in brand_products.iterrows():
+                                st.markdown('<div class="product-card">', unsafe_allow_html=True)
                                 
-                                # Try to display the image
-                                try:
-                                    st.image(image_url, use_container_width=True)
-                                except Exception as e:
-                                    # If image fails, show placeholder with product info
+                                # Image handling with fallback
+                                image_url = product.get('Image Link', '')
+                                if pd.notna(image_url) and str(image_url).strip():
+                                    image_url = str(image_url).strip()
+                                    try:
+                                        st.image(image_url, use_container_width=True)
+                                    except:
+                                        st.markdown(f"""
+                                        <div style="background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); 
+                                                    height: 220px; 
+                                                    border-radius: 10px; 
+                                                    display: flex; 
+                                                    align-items: center; 
+                                                    justify-content: center;
+                                                    margin-bottom: 0.8rem;
+                                                    color: #6366f1;
+                                                    font-weight: 600;
+                                                    text-align: center;
+                                                    padding: 1rem;">
+                                            📷<br>Image unavailable
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                else:
                                     st.markdown(f"""
                                     <div style="background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); 
                                                 height: 220px; 
@@ -891,60 +925,20 @@ def main():
                                                 font-weight: 600;
                                                 text-align: center;
                                                 padding: 1rem;">
-                                        📷<br>Image unavailable
+                                        📷<br>No image
                                     </div>
                                     """, unsafe_allow_html=True)
-                            else:
-                                # No image URL provided
-                                st.markdown(f"""
-                                <div style="background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); 
-                                            height: 220px; 
-                                            border-radius: 10px; 
-                                            display: flex; 
-                                            align-items: center; 
-                                            justify-content: center;
-                                            margin-bottom: 0.8rem;
-                                            color: #6366f1;
-                                            font-weight: 600;
-                                            text-align: center;
-                                            padding: 1rem;">
-                                    📷<br>No image
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='product-price'>{currency} {product['Selling Price']:.2f}</div>", unsafe_allow_html=True)
-                            
-                            st.markdown(f"<a href='{product['Link']}' class='product-link' target='_blank'>View Product →</a>", unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                    else:
-                        st.info(f"No products available for {brand}")
+                                
+                                st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div class='product-price'>{currency} {product['Selling Price']:.2f}</div>", unsafe_allow_html=True)
+                                
+                                st.markdown(f"<a href='{product['Link']}' class='product-link' target='_blank'>View Product →</a>", unsafe_allow_html=True)
+                                st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.info("No categorized products available.")
         else:
-            st.info("No products available for the selected filters.")
-    
-    # ========== TAB 4: INSIGHTS ==========
-    with tab4:
-        st.markdown("### 💡 Strategic Insights & Recommendations")
-        
-        with st.spinner("Generating AI-powered pricing insights..."):
-            insights = generate_ai_insights(
-                filtered_df, 
-                metrics, 
-                selected_our_brands, 
-                selected_competitors,
-                selected_category,
-                selected_marketplace,
-                api_key,
-                currency
-            )
-        
-        for insight in insights:
-            st.markdown(f"""
-            <div class="insight-box">
-                {insight}
-            </div>
-            """, unsafe_allow_html=True)
+            st.warning("⚠️ Products need to be categorized. Please provide an OpenAI API key in the sidebar to automatically categorize products.")
 
 if __name__ == "__main__":
     main()
