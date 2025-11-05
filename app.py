@@ -756,108 +756,53 @@ def main():
     
     # ========== TAB 3: PRODUCT GALLERY ==========
     with tab3:
-        st.markdown("### 🖼️ Product Showcase by Category & Subcategory")
+        st.markdown("### 🖼️ Product Gallery - Similar Styles Side by Side")
         
-        # Get unique categories sorted
-        categories = sorted(filtered_df['Category'].unique())
-        
-        if len(categories) > 0:
-            for category in categories:
-                # Category Header
+        if len(filtered_df) > 0:
+            # Group products by subcategory to show similar styles together
+            subcategories = sorted(filtered_df['Subcategory'].unique())
+            
+            for subcategory in subcategories:
+                # Subcategory Header
                 st.markdown(f"""
-                <div class="category-header">
-                    📂 {category.upper()}
+                <div class="subcategory-header">
+                    🏷️ {subcategory}
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Get all products in this category
-                category_products = filtered_df[filtered_df['Category'] == category]
+                # Get all products in this subcategory across all brands
+                subcat_products = filtered_df[filtered_df['Subcategory'] == subcategory].copy()
                 
-                # Get unique subcategories within this category
-                subcategories = sorted(category_products['Subcategory'].unique())
+                # Sort products: our brands first, then competitors
+                subcat_products['sort_order'] = subcat_products['Brand'].apply(
+                    lambda x: 0 if x in selected_our_brands else 1
+                )
+                subcat_products = subcat_products.sort_values(['sort_order', 'Brand', 'Selling Price'])
                 
-                for subcategory in subcategories:
-                    # Subcategory Header
-                    st.markdown(f"""
-                    <div class="subcategory-header">
-                        🏷️ {subcategory}
-                    </div>
-                    """, unsafe_allow_html=True)
+                # Display products in a grid (4 columns)
+                num_products = len(subcat_products)
+                cols_per_row = 4
+                
+                for i in range(0, num_products, cols_per_row):
+                    cols = st.columns(cols_per_row)
                     
-                    # Get products in this subcategory
-                    subcat_products = category_products[category_products['Subcategory'] == subcategory]
-                    
-                    # Group by brand - show all selected brands in order (our brands first, then competitors)
-                    brands_in_subcat = []
-                    # Add our brands first
-                    for our_brand in selected_our_brands:
-                        if our_brand in subcat_products['Brand'].values:
-                            brands_in_subcat.append(our_brand)
-                    # Then add competitor brands
-                    for comp_brand in selected_competitors:
-                        if comp_brand in subcat_products['Brand'].values:
-                            brands_in_subcat.append(comp_brand)
-                    
-                    # Create columns for each brand (max 4 columns per row)
-                    num_cols = min(len(brands_in_subcat), 4)
-                    
-                    if num_cols > 0:
-                        # Create brand columns
-                        brand_cols = st.columns(num_cols)
-                        
-                        for idx, brand in enumerate(brands_in_subcat):
-                            col_idx = idx % num_cols
-                            with brand_cols[col_idx]:
-                                # Brand header with different color for our brands vs competitors
-                                is_our_brand = brand in selected_our_brands
-                                header_gradient = "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)" if is_our_brand else "linear-gradient(135deg, #ec4899 0%, #db2777 100%)"
+                    for j, col in enumerate(cols):
+                        idx = i + j
+                        if idx < num_products:
+                            product = subcat_products.iloc[idx]
+                            
+                            with col:
+                                st.markdown('<div class="product-card">', unsafe_allow_html=True)
                                 
-                                st.markdown(f"""
-                                <div style="background: {header_gradient};
-                                            color: white;
-                                            padding: 1rem;
-                                            border-radius: 10px;
-                                            text-align: center;
-                                            font-weight: 700;
-                                            font-size: 1.1rem;
-                                            margin-bottom: 1rem;
-                                            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);">
-                                    {brand} {'🏆' if is_our_brand else '⚔️'}
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                # Get products for this brand and subcategory
-                                brand_products = subcat_products[subcat_products['Brand'] == brand]
-                                
-                                # Display products
-                                for _, product in brand_products.iterrows():
-                                    st.markdown('<div class="product-card">', unsafe_allow_html=True)
-                                    
-                                    # Image handling with fallback
-                                    image_url = product.get('Image Link', '')
-                                    if pd.notna(image_url) and str(image_url).strip():
-                                        image_url = str(image_url).strip()
-                                        try:
-                                            st.markdown(f'<div class="product-image-container">', unsafe_allow_html=True)
-                                            st.image(image_url, use_container_width=True)
-                                            st.markdown('</div>', unsafe_allow_html=True)
-                                        except:
-                                            st.markdown(f"""
-                                            <div style="background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); 
-                                                        height: 200px; 
-                                                        border-radius: 10px; 
-                                                        display: flex; 
-                                                        align-items: center; 
-                                                        justify-content: center;
-                                                        margin-bottom: 0.8rem;
-                                                        color: #6366f1;
-                                                        font-weight: 600;
-                                                        text-align: center;
-                                                        padding: 1rem;">
-                                                📷<br>Image unavailable
-                                            </div>
-                                            """, unsafe_allow_html=True)
-                                    else:
+                                # Image handling with fallback
+                                image_url = product.get('Image Link', '')
+                                if pd.notna(image_url) and str(image_url).strip():
+                                    image_url = str(image_url).strip()
+                                    try:
+                                        st.markdown(f'<div class="product-image-container">', unsafe_allow_html=True)
+                                        st.image(image_url, use_container_width=True)
+                                        st.markdown('</div>', unsafe_allow_html=True)
+                                    except:
                                         st.markdown(f"""
                                         <div style="background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); 
                                                     height: 200px; 
@@ -870,19 +815,40 @@ def main():
                                                     font-weight: 600;
                                                     text-align: center;
                                                     padding: 1rem;">
-                                            📷<br>No image
+                                            📷<br>Image unavailable
                                         </div>
                                         """, unsafe_allow_html=True)
-                                    
-                                    st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
-                                    st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
-                                    st.markdown(f"<div class='product-price'>{currency} {product['Selling Price']:.2f}</div>", unsafe_allow_html=True)
-                                    
-                                    st.markdown(f"<a href='{product['Link']}' class='product-link' target='_blank'>View Product →</a>", unsafe_allow_html=True)
-                                    st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    # Add spacing between subcategories
-                    st.markdown("<br>", unsafe_allow_html=True)
+                                else:
+                                    st.markdown(f"""
+                                    <div style="background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); 
+                                                height: 200px; 
+                                                border-radius: 10px; 
+                                                display: flex; 
+                                                align-items: center; 
+                                                justify-content: center;
+                                                margin-bottom: 0.8rem;
+                                                color: #6366f1;
+                                                font-weight: 600;
+                                                text-align: center;
+                                                padding: 1rem;">
+                                        📷<br>No image
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # Brand badge with different colors
+                                is_our_brand = product['Brand'] in selected_our_brands
+                                brand_color = '#8b5cf6' if is_our_brand else '#ec4899'
+                                brand_emoji = '🏆' if is_our_brand else '⚔️'
+                                
+                                st.markdown(f"<div class='product-brand' style='color: {brand_color};'>{product['Brand']} {brand_emoji}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div class='product-price'>{currency} {product['Selling Price']:.2f}</div>", unsafe_allow_html=True)
+                                
+                                st.markdown(f"<a href='{product['Link']}' class='product-link' target='_blank'>View Product →</a>", unsafe_allow_html=True)
+                                st.markdown('</div>', unsafe_allow_html=True)
+                
+                # Add spacing between subcategories
+                st.markdown("<br><br>", unsafe_allow_html=True)
         else:
             st.info("No products available for the selected filters.")
 
