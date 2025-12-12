@@ -598,7 +598,7 @@ def main():
                     )
                     
                     fig_subcat.update_layout(
-                        height=300,
+                        height=400,
                         showlegend=False,
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)',
