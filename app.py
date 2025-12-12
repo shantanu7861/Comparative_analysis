@@ -580,7 +580,7 @@ def main():
                     # Calculate average price by brand for this subcategory
                     subcat_avg_price = subcategory_data.groupby('Brand')['Selling Price'].mean().reset_index()
                     subcat_avg_price['Selling Price'] = subcat_avg_price['Selling Price'].astype(int)  # Convert to integer
-                    subcat_avg_price = subcat_avg_price.sort_values('Selling Price', ascending=False)
+                    subcat_avg_price = subcat_avg_price.sort_values('Selling Price', ascending=True)
                     
                     fig_subcat = px.bar(
                         subcat_avg_price,
