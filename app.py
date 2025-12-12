@@ -501,7 +501,7 @@ def main():
             {'Brand': brand, 'Avg Price': metrics[brand]['avg_price'], 
              'Type': 'Our Brand' if brand in selected_our_brands else 'Competitor'}
             for brand in all_selected_brands
-        ]).sort_values('Avg Price', ascending=False)
+        ]).sort_values('Avg Price', ascending=True)
         
         fig_price = px.bar(
             price_data, 
