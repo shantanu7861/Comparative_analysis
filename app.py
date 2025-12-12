@@ -33,16 +33,16 @@ st.markdown("""
     /* Custom header styling */
     .main-header {
         background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
-        padding: 2.5rem;
+        padding: 40px;
         border-radius: 15px;
-        margin-bottom: 2rem;
+        margin-bottom: 32px;
         box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
     .main-header h1 {
         color: white;
-        font-size: 2.8rem;
+        font-size: 45px;
         font-weight: 800;
         margin: 0;
         text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
@@ -51,25 +51,25 @@ st.markdown("""
     
     .main-header p {
         color: rgba(255,255,255,0.95);
-        font-size: 1.2rem;
-        margin-top: 0.8rem;
+        font-size: 19px;
+        margin-top: 12px;
         font-weight: 300;
     }
     
     /* Filter display styling */
     .filter-display {
         background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
-        padding: 1.5rem;
+        padding: 24px;
         border-radius: 12px;
-        margin-bottom: 2rem;
+        margin-bottom: 32px;
         color: white;
         box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.15);
     }
     
     .filter-display h3 {
-        margin: 0 0 1rem 0;
-        font-size: 1.3rem;
+        margin: 0 0 16px 0;
+        font-size: 21px;
         font-weight: 700;
         letter-spacing: -0.3px;
     }
@@ -78,17 +78,17 @@ st.markdown("""
         display: inline-block;
         background: rgba(255,255,255,0.25);
         backdrop-filter: blur(10px);
-        padding: 0.5rem 1rem;
+        padding: 8px 16px;
         border-radius: 25px;
-        margin: 0.3rem 0.3rem 0.3rem 0;
-        font-size: 0.95rem;
+        margin: 5px 5px 5px 0;
+        font-size: 15px;
         font-weight: 500;
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
     
     /* Metric card styling */
     [data-testid="stMetricValue"] {
-        font-size: 2rem;
+        font-size: 32px;
         font-weight: 700;
     }
     
@@ -96,11 +96,11 @@ st.markdown("""
     .product-card {
         background: white;
         border-radius: 12px;
-        padding: 1rem;
+        padding: 16px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         transition: transform 0.2s, box-shadow 0.2s;
         height: 100%;
-        margin-bottom: 1rem;
+        margin-bottom: 16px;
     }
     
     .product-card:hover {
@@ -113,22 +113,22 @@ st.markdown("""
         width: 100%;
         height: 220px;
         object-fit: cover;
-        margin-bottom: 0.8rem;
+        margin-bottom: 12px;
     }
     
     .product-brand {
-        font-size: 0.75rem;
+        font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
         color: #8b5cf6;
         letter-spacing: 0.5px;
-        margin-bottom: 0.3rem;
+        margin-bottom: 5px;
     }
     
     .product-title {
-        font-size: 0.9rem;
+        font-size: 14px;
         font-weight: 600;
-        margin-top: 0.3rem;
+        margin-top: 5px;
         color: #1f2937;
         height: 40px;
         overflow: hidden;
@@ -137,27 +137,27 @@ st.markdown("""
     
     .product-price {
         color: #6366f1;
-        font-size: 1.3rem;
+        font-size: 21px;
         font-weight: 800;
-        margin-top: 0.5rem;
+        margin-top: 8px;
     }
     
     .product-category {
-        font-size: 0.75rem;
+        font-size: 12px;
         color: #6b7280;
-        margin-top: 0.5rem;
+        margin-top: 8px;
         font-style: italic;
     }
     
     .product-link {
         display: inline-block;
-        margin-top: 0.6rem;
-        padding: 0.6rem 1.2rem;
+        margin-top: 10px;
+        padding: 10px 19px;
         background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
         color: white;
         text-decoration: none;
         border-radius: 8px;
-        font-size: 0.85rem;
+        font-size: 14px;
         font-weight: 600;
         transition: all 0.3s;
         box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
@@ -173,12 +173,12 @@ st.markdown("""
     .brand-column-header {
         background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
         color: white;
-        padding: 1rem;
+        padding: 16px;
         border-radius: 10px;
         text-align: center;
         font-weight: 700;
-        font-size: 1.1rem;
-        margin-bottom: 1rem;
+        font-size: 18px;
+        margin-bottom: 16px;
         box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
     }
     
@@ -243,7 +243,7 @@ def load_data(file_path=None):
         df['Title'] = df['Title'].astype(str).str.strip()
         df['Subcategory'] = df['Subcategory'].astype(str).str.strip()
         
-        # Convert price to numeric
+        # Convert price to numeric and convert to integer
         df['Selling Price'] = pd.to_numeric(
             df['Selling Price'].astype(str)
             .str.replace('RM', '', regex=False)
@@ -254,10 +254,10 @@ def load_data(file_path=None):
             .str.replace(',', '', regex=False)
             .str.strip(), 
             errors='coerce'
-        )
+        ).fillna(0).astype(int)  # Convert to integer
         
         # Remove rows with missing data
-        df = df.dropna(subset=['Brand', 'Selling Price', 'Title', 'Subcategory'])
+        df = df.dropna(subset=['Brand', 'Title', 'Subcategory'])
         
         return df
     
@@ -278,7 +278,7 @@ def create_dummy_data():
             "Block Heel Pumps", "Slip-On Loafers", "Knee-High Riding Boots",
             "Wedge Espadrilles", "Mary Jane Flats", "Athletic Running Sneakers"
         ], 50),
-        'Selling Price': np.random.uniform(80, 300, 50).round(2),
+        'Selling Price': np.random.randint(80, 300, 50),  # Integer prices
         'Subcategory': np.random.choice([
             'Ankle Boots', 'Knee-High Boots', 'Pumps & Court Shoes', 'Stilettos', 
             'Ballet Flats', 'Loafers', 'Fashion Sneakers', 'Flat Sandals', 'Heeled Sandals'
@@ -294,12 +294,21 @@ def calculate_metrics(df, brands):
     
     for brand in brands:
         brand_data = df[df['Brand'] == brand]
-        metrics[brand] = {
-            'avg_price': brand_data['Selling Price'].mean(),
-            'min_price': brand_data['Selling Price'].min(),
-            'max_price': brand_data['Selling Price'].max(),
-            'total_products': len(brand_data)
-        }
+        if len(brand_data) > 0:
+            avg_price = int(brand_data['Selling Price'].mean())  # Convert to integer
+            metrics[brand] = {
+                'avg_price': avg_price,
+                'min_price': int(brand_data['Selling Price'].min()),
+                'max_price': int(brand_data['Selling Price'].max()),
+                'total_products': len(brand_data)
+            }
+        else:
+            metrics[brand] = {
+                'avg_price': 0,
+                'min_price': 0,
+                'max_price': 0,
+                'total_products': 0
+            }
     
     return metrics
 
@@ -311,8 +320,8 @@ def main():
     # Header
     st.markdown("""
     <div class="main-header">
-        <h1>👠 Myntra Competitive Analysis</h1>
-        
+        <h1>👠 Women's Shoes Competitive Analysis</h1>
+        <p>Strategic pricing insights and product categorization</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -453,13 +462,13 @@ def main():
                     
                     st.metric(
                         "Avg Selling Price",
-                        f"{currency} {int(brand_metrics['avg_price'])}",
+                        f"{currency} {brand_metrics['avg_price']}",
                         help="Average selling price across all products"
                     )
                     
                     st.metric(
                         "Price Range",
-                        f"{currency} {int(brand_metrics['min_price'])} - {currency} {int(brand_metrics['max_price'])}",
+                        f"{currency} {brand_metrics['min_price']} - {currency} {brand_metrics['max_price']}",
                         help="Minimum to maximum price range"
                     )
                     
@@ -478,8 +487,8 @@ def main():
             for idx, brand in enumerate(selected_competitors):
                 with cols[idx]:
                     st.markdown(f"**{brand}**")
-                    st.metric("Avg Price", f"{currency} {metrics[brand]['avg_price']:.2f}")
-                    st.metric("Price Range", f"{currency} {metrics[brand]['min_price']:.2f} - {currency} {metrics[brand]['max_price']:.2f}")
+                    st.metric("Avg Price", f"{currency} {metrics[brand]['avg_price']}")
+                    st.metric("Price Range", f"{currency} {metrics[brand]['min_price']} - {currency} {metrics[brand]['max_price']}")
                     st.metric("Products", metrics[brand]['total_products'])
     
     # ========== TAB 2: CHARTS ==========
@@ -500,7 +509,7 @@ def main():
             y='Avg Price',
             color='Type',
             color_discrete_map={'Our Brand': '#8b5cf6', 'Competitor': '#0ea5e9'},
-            text=[f'{currency} {int(val)}' for val in price_data['Avg Price']]
+            text=[f'{currency} {val}' for val in price_data['Avg Price']]
         )
         
         fig_price.update_traces(
@@ -570,6 +579,7 @@ def main():
                     
                     # Calculate average price by brand for this subcategory
                     subcat_avg_price = subcategory_data.groupby('Brand')['Selling Price'].mean().reset_index()
+                    subcat_avg_price['Selling Price'] = subcat_avg_price['Selling Price'].astype(int)  # Convert to integer
                     subcat_avg_price = subcat_avg_price.sort_values('Selling Price', ascending=False)
                     
                     fig_subcat = px.bar(
@@ -577,7 +587,7 @@ def main():
                         x='Brand',
                         y='Selling Price',
                         title=f"Average Price in {subcategory}",
-                        text=[f'{currency} {int(val)}' for val in subcat_avg_price['Selling Price']],
+                        text=[f'{currency} {val}' for val in subcat_avg_price['Selling Price']],
                         color='Brand',
                         color_discrete_sequence=px.colors.qualitative.Set3
                     )
@@ -617,7 +627,7 @@ def main():
                     'Type': 'Our Brand' if brand in selected_our_brands else 'Competitor',
                     'Price_Type': 'Highest',
                     'Product_Name': max_product['Title'],
-                    'Price': max_product['Selling Price'],
+                    'Price': int(max_product['Selling Price']),  # Convert to integer
                     'Image_URL': max_product['Image_URL'],
                     'Subcategory': max_product['Subcategory']
                 })
@@ -627,7 +637,7 @@ def main():
                     'Type': 'Our Brand' if brand in selected_our_brands else 'Competitor',
                     'Price_Type': 'Lowest',
                     'Product_Name': min_product['Title'],
-                    'Price': min_product['Selling Price'],
+                    'Price': int(min_product['Selling Price']),  # Convert to integer
                     'Image_URL': min_product['Image_URL'],
                     'Subcategory': min_product['Subcategory']
                 })
@@ -672,7 +682,7 @@ def main():
                         st.markdown(f"<small>{item['Subcategory']}</small>", unsafe_allow_html=True)
                     
                     with cols[3]:
-                        st.markdown(f"**{currency} {int(item['Price'])}**")
+                        st.markdown(f"**{currency} {item['Price']}**")
                 
                 st.markdown("---")
     
@@ -734,7 +744,7 @@ def main():
                             
                             st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='product-price'>{currency} {int(product['Selling Price'])}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='product-price'>{currency} {int(product['Selling Price'])}</div>", unsafe_allow_html=True)  # Convert to integer
                             st.markdown(f"<div class='product-category'>Subcategory: {product['Subcategory']}</div>", unsafe_allow_html=True)
                             
                             st.markdown('</div>', unsafe_allow_html=True)
