@@ -451,10 +451,15 @@ def main():
         # Our Brands metrics
         st.markdown("#### 🏆 Our Brands Performance")
         
-        # Display metrics for our brands side by side
-        our_brand_cols = st.columns(len(selected_our_brands))
+        # Sort our brands by average price in descending order
+        sorted_our_brands = sorted(selected_our_brands, 
+                                  key=lambda x: metrics[x]['avg_price'], 
+                                  reverse=True)
         
-        for idx, our_brand in enumerate(selected_our_brands):
+        # Display metrics for our brands side by side
+        our_brand_cols = st.columns(len(sorted_our_brands))
+        
+        for idx, our_brand in enumerate(sorted_our_brands):
             if our_brand in metrics:
                 with our_brand_cols[idx]:
                     st.markdown(f"**{our_brand}**")
@@ -483,8 +488,13 @@ def main():
             st.markdown("---")
             st.markdown("#### ⚔️ Competitor Comparison")
             
-            cols = st.columns(len(selected_competitors))
-            for idx, brand in enumerate(selected_competitors):
+            # Sort competitors by average price in descending order
+            sorted_competitors = sorted(selected_competitors, 
+                                       key=lambda x: metrics[x]['avg_price'], 
+                                       reverse=True)
+            
+            cols = st.columns(len(sorted_competitors))
+            for idx, brand in enumerate(sorted_competitors):
                 with cols[idx]:
                     st.markdown(f"**{brand}**")
                     st.metric("Avg Price", f"{currency} {metrics[brand]['avg_price']}")
@@ -495,7 +505,7 @@ def main():
     with tab2:
         st.markdown("### 📊 Visual Analysis")
         
-        # Average Price Comparison
+        # Average Price Comparison - Already sorted in descending order
         st.markdown("#### Average Selling Price by Brand")
         price_data = pd.DataFrame([
             {'Brand': brand, 'Avg Price': metrics[brand]['avg_price'], 
@@ -536,9 +546,21 @@ def main():
         st.markdown("---")
         st.markdown("#### 💎 Price Distribution by Brand")
         
+        # Sort brands by median price in descending order for box plot
+        brand_medians = []
+        for brand in all_selected_brands:
+            brand_data = filtered_df[filtered_df['Brand'] == brand]
+            if len(brand_data) > 0:
+                median_price = brand_data['Selling Price'].median()
+                brand_medians.append((brand, median_price))
+        
+        # Sort brands by median price in descending order
+        sorted_brand_medians = sorted(brand_medians, key=lambda x: x[1], reverse=True)
+        sorted_brands_box = [brand for brand, median in sorted_brand_medians]
+        
         fig_box = go.Figure()
         
-        for brand in all_selected_brands:
+        for brand in sorted_brands_box:
             brand_data = filtered_df[filtered_df['Brand'] == brand]
             is_our_brand = brand in selected_our_brands
             
@@ -570,8 +592,19 @@ def main():
         st.markdown("#### 📊 Subcategory Analysis")
         
         if selected_subcategories:
-            # Create a chart for each selected subcategory
+            # Sort subcategories by average price in descending order
+            subcategory_avg_prices = []
             for subcategory in selected_subcategories:
+                subcategory_data = filtered_df[filtered_df['Subcategory'] == subcategory]
+                if len(subcategory_data) > 0:
+                    avg_price = subcategory_data['Selling Price'].mean()
+                    subcategory_avg_prices.append((subcategory, avg_price))
+            
+            # Sort subcategories by average price in descending order
+            sorted_subcategories = sorted(subcategory_avg_prices, key=lambda x: x[1], reverse=True)
+            
+            # Create a chart for each selected subcategory in descending order
+            for subcategory, avg_price in sorted_subcategories:
                 subcategory_data = filtered_df[filtered_df['Subcategory'] == subcategory]
                 
                 if len(subcategory_data) > 0:
@@ -580,6 +613,8 @@ def main():
                     # Calculate average price by brand for this subcategory
                     subcat_avg_price = subcategory_data.groupby('Brand')['Selling Price'].mean().reset_index()
                     subcat_avg_price['Selling Price'] = subcat_avg_price['Selling Price'].astype(int)  # Convert to integer
+                    
+                    # Sort brands by average price in descending order
                     subcat_avg_price = subcat_avg_price.sort_values('Selling Price', ascending=False)
                     
                     fig_subcat = px.bar(
@@ -602,7 +637,8 @@ def main():
                         showlegend=False,
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)',
-                        margin=dict(t=50, b=40, l=40, r=40)
+                        margin=dict(t=50, b=40, l=40, r=40),
+                        xaxis={'categoryorder': 'total descending'}
                     )
                     
                     st.plotly_chart(fig_subcat, use_container_width=True)
@@ -642,8 +678,19 @@ def main():
                     'Subcategory': min_product['Subcategory']
                 })
         
-        # Display as organized columns
-        for brand in all_selected_brands:
+        # Sort brands by highest price in descending order
+        brand_highest_prices = {}
+        for item in price_extremes_data:
+            if item['Price_Type'] == 'Highest':
+                brand_highest_prices[item['Brand']] = item['Price']
+        
+        sorted_brands_extremes = sorted(brand_highest_prices.items(), 
+                                       key=lambda x: x[1], 
+                                       reverse=True)
+        sorted_brands_list = [brand for brand, price in sorted_brands_extremes]
+        
+        # Display as organized columns in descending order
+        for brand in sorted_brands_list:
             brand_extremes = [item for item in price_extremes_data if item['Brand'] == brand]
             
             if brand_extremes:
@@ -660,7 +707,12 @@ def main():
                 with cols[3]:
                     st.markdown("**Price**")
                 
-                for item in brand_extremes:
+                # Sort extremes within brand (Highest first, then Lowest)
+                brand_extremes_sorted = sorted(brand_extremes, 
+                                              key=lambda x: x['Price'], 
+                                              reverse=True)
+                
+                for item in brand_extremes_sorted:
                     cols = st.columns([1, 3, 2, 2])
                     
                     with cols[0]:
@@ -707,12 +759,25 @@ def main():
             st.info("No products available for the selected subcategories in gallery view.")
             return
         
+        # Sort brands by average price in descending order
+        brand_avg_prices = {}
+        for brand in all_selected_brands:
+            brand_data = gallery_df[gallery_df['Brand'] == brand]
+            if len(brand_data) > 0:
+                avg_price = brand_data['Selling Price'].mean()
+                brand_avg_prices[brand] = avg_price
+        
+        sorted_brands_gallery = sorted(brand_avg_prices.items(), 
+                                      key=lambda x: x[1], 
+                                      reverse=True)
+        sorted_brands_list_gallery = [brand for brand, price in sorted_brands_gallery]
+        
         # Organize products by brand in columns
-        if len(all_selected_brands) > 0:
+        if len(sorted_brands_list_gallery) > 0:
             # Create columns for each brand
-            brand_cols = st.columns(len(all_selected_brands))
+            brand_cols = st.columns(len(sorted_brands_list_gallery))
             
-            for idx, brand in enumerate(all_selected_brands):
+            for idx, brand in enumerate(sorted_brands_list_gallery):
                 with brand_cols[idx]:
                     # Brand header
                     st.markdown(f"""
@@ -723,6 +788,9 @@ def main():
                     
                     # Get products for this brand
                     brand_products = gallery_df[gallery_df['Brand'] == brand]
+                    
+                    # Sort products by price in descending order
+                    brand_products = brand_products.sort_values('Selling Price', ascending=False)
                     
                     if len(brand_products) > 0:
                         # Display all products in vertical layout
