@@ -193,7 +193,7 @@ st.markdown("""
         font-weight: 600;
     }
 </style>
-""", unsafe_allow_html=True)
+""", unsafe_allow_html=False)
 
 # ========== DATA LOADING FUNCTION ==========
 @st.cache_data
@@ -323,7 +323,7 @@ def main():
         <h1>👠 Women's Shoes Competitive Analysis</h1>
         <p>Strategic pricing insights and product categorization</p>
     </div>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=False)
     
     # ========== SIDEBAR ==========
     with st.sidebar:
@@ -431,7 +431,7 @@ def main():
         <span class="filter-tag">⚔️ Competitors: {', '.join(selected_competitors) if selected_competitors else 'None'}</span>
     </div>
     """
-    st.markdown(filter_text, unsafe_allow_html=True)
+    st.markdown(filter_text, unsafe_allow_html=False)
     
     # ========== MAIN CONTENT ==========
     if len(filtered_df) == 0:
@@ -501,7 +501,7 @@ def main():
             {'Brand': brand, 'Avg Price': metrics[brand]['avg_price'], 
              'Type': 'Our Brand' if brand in selected_our_brands else 'Competitor'}
             for brand in all_selected_brands
-        ]).sort_values('Avg Price', ascending=True)
+        ]).sort_values('Avg Price', ascending=False)
         
         fig_price = px.bar(
             price_data, 
@@ -525,12 +525,12 @@ def main():
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
             font=dict(size=12),
-            showlegend=True,
+            showlegend=False,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             margin=dict(t=80, b=60, l=60, r=40),
             yaxis=dict(gridcolor='rgba(128,128,128,0.2)', zeroline=False)
         )
-        st.plotly_chart(fig_price, use_container_width=True)
+        st.plotly_chart(fig_price, use_container_width=False)
         
         # Price Distribution Comparison
         st.markdown("---")
@@ -563,7 +563,7 @@ def main():
             margin=dict(t=40, b=60, l=60, r=40),
             yaxis=dict(gridcolor='rgba(128,128,128,0.2)', zeroline=False)
         )
-        st.plotly_chart(fig_box, use_container_width=True)
+        st.plotly_chart(fig_box, use_container_width=False)
         
         # Subcategory Analysis
         st.markdown("---")
@@ -580,7 +580,7 @@ def main():
                     # Calculate average price by brand for this subcategory
                     subcat_avg_price = subcategory_data.groupby('Brand')['Selling Price'].mean().reset_index()
                     subcat_avg_price['Selling Price'] = subcat_avg_price['Selling Price'].astype(int)  # Convert to integer
-                    subcat_avg_price = subcat_avg_price.sort_values('Selling Price', ascending=True)
+                    subcat_avg_price = subcat_avg_price.sort_values('Selling Price', ascending=False)
                     
                     fig_subcat = px.bar(
                         subcat_avg_price,
@@ -605,7 +605,7 @@ def main():
                         margin=dict(t=50, b=40, l=40, r=40)
                     )
                     
-                    st.plotly_chart(fig_subcat, use_container_width=True)
+                    st.plotly_chart(fig_subcat, use_container_width=False)
         
         # Price Extremes Table
         st.markdown("---")
@@ -676,10 +676,10 @@ def main():
                     with cols[1]:
                         price_badge = "🔴 HIGH" if item['Price_Type'] == 'Highest' else "🟢 LOW"
                         st.markdown(f"{price_badge}")
-                        st.markdown(f"<small>{item['Product_Name'][:50]}{'...' if len(item['Product_Name']) > 50 else ''}</small>", unsafe_allow_html=True)
+                        st.markdown(f"<small>{item['Product_Name'][:50]}{'...' if len(item['Product_Name']) > 50 else ''}</small>", unsafe_allow_html=False)
                     
                     with cols[2]:
-                        st.markdown(f"<small>{item['Subcategory']}</small>", unsafe_allow_html=True)
+                        st.markdown(f"<small>{item['Subcategory']}</small>", unsafe_allow_html=False)
                     
                     with cols[3]:
                         st.markdown(f"**{currency} {item['Price']}**")
@@ -719,7 +719,7 @@ def main():
                     <div class="brand-column-header">
                         {brand}
                     </div>
-                    """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=False)
                     
                     # Get products for this brand
                     brand_products = gallery_df[gallery_df['Brand'] == brand]
@@ -727,7 +727,7 @@ def main():
                     if len(brand_products) > 0:
                         # Display all products in vertical layout
                         for _, product in brand_products.iterrows():
-                            st.markdown('<div class="product-card">', unsafe_allow_html=True)
+                            st.markdown('<div class="product-card">', unsafe_allow_html=False)
                             
                             # Better image handling with validation
                             image_url = str(product.get('Image_URL', '')).strip()
@@ -735,19 +735,19 @@ def main():
                             # Check if image URL is valid
                             if image_url and image_url != 'nan' and image_url.startswith(('http://', 'https://')):
                                 try:
-                                    st.image(image_url, use_column_width=True)
+                                    st.image(image_url, use_column_width=False)
                                 except Exception as e:
-                                    st.image("https://via.placeholder.com/300x400.png?text=Image+Unavailable", use_column_width=True)
+                                    st.image("https://via.placeholder.com/300x400.png?text=Image+Unavailable", use_column_width=False)
                                     st.caption(f"⚠️ Image load error")
                             else:
-                                st.image("https://via.placeholder.com/300x400.png?text=No+Image", use_column_width=True)
+                                st.image("https://via.placeholder.com/300x400.png?text=No+Image", use_column_width=False)
                             
-                            st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='product-price'>{currency} {int(product['Selling Price'])}</div>", unsafe_allow_html=True)  # Convert to integer
-                            st.markdown(f"<div class='product-category'>Subcategory: {product['Subcategory']}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=False)
+                            st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=False)
+                            st.markdown(f"<div class='product-price'>{currency} {int(product['Selling Price'])}</div>", unsafe_allow_html=False)  # Convert to integer
+                            st.markdown(f"<div class='product-category'>Subcategory: {product['Subcategory']}</div>", unsafe_allow_html=False)
                             
-                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=False)
                     else:
                         st.info(f"No products available for {brand} in selected subcategories")
         else:
