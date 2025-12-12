@@ -532,38 +532,7 @@ def main():
         )
         st.plotly_chart(fig_price, use_container_width=False)
         
-        # Price Distribution Comparison
-        st.markdown("---")
-        st.markdown("#### 💎 Price Distribution by Brand")
         
-        fig_box = go.Figure()
-        
-        for brand in all_selected_brands:
-            brand_data = filtered_df[filtered_df['Brand'] == brand]
-            is_our_brand = brand in selected_our_brands
-            
-            fig_box.add_trace(go.Box(
-                y=brand_data['Selling Price'],
-                name=brand,
-                marker=dict(
-                    color='rgb(139, 92, 246)' if is_our_brand else 'rgb(14, 165, 233)',
-                    line=dict(width=2)
-                ),
-                boxmean='sd'
-            ))
-        
-        fig_box.update_layout(
-            height=450,
-            xaxis_title="Brand",
-            yaxis_title=f"Price Distribution ({currency})",
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(size=12),
-            showlegend=False,
-            margin=dict(t=40, b=60, l=60, r=40),
-            yaxis=dict(gridcolor='rgba(128,128,128,0.2)', zeroline=False)
-        )
-        st.plotly_chart(fig_box, use_container_width=False)
         
         # Subcategory Analysis
         st.markdown("---")
