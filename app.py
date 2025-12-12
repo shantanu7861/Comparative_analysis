@@ -6,6 +6,8 @@ from plotly.subplots import make_subplots
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+import warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 # ========== PAGE CONFIGURATION ==========
 st.set_page_config(
