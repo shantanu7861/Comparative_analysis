@@ -320,7 +320,7 @@ def main():
     # Header
     st.markdown("""
     <div class="main-header">
-        <h1>👠 Women's Shoes Competitive Analysis</h1>
+        <h1>👠 Myntra Shoes Competitive Analysis</h1>
         <p>Strategic pricing insights and product categorization</p>
     </div>
     """, unsafe_allow_html=True)
