@@ -453,13 +453,13 @@ def main():
                     
                     st.metric(
                         "Avg Selling Price",
-                        f"{currency} {brand_metrics['avg_price']:.2f}",
+                        f"{currency} {int(brand_metrics['avg_price'])}",
                         help="Average selling price across all products"
                     )
                     
                     st.metric(
                         "Price Range",
-                        f"{currency} {brand_metrics['min_price']:.2f} - {currency} {brand_metrics['max_price']:.2f}",
+                        f"{currency} {int(brand_metrics['min_price'])} - {currency} {int(brand_metrics['max_price'])}",
                         help="Minimum to maximum price range"
                     )
                     
@@ -500,7 +500,7 @@ def main():
             y='Avg Price',
             color='Type',
             color_discrete_map={'Our Brand': '#8b5cf6', 'Competitor': '#0ea5e9'},
-            text=[f'{currency} {val:.2f}' for val in price_data['Avg Price']]
+            text=[f'{currency} {int(val)}' for val in price_data['Avg Price']]
         )
         
         fig_price.update_traces(
@@ -577,7 +577,7 @@ def main():
                         x='Brand',
                         y='Selling Price',
                         title=f"Average Price in {subcategory}",
-                        text=[f'{currency} {val:.2f}' for val in subcat_avg_price['Selling Price']],
+                        text=[f'{currency} {int(val)}' for val in subcat_avg_price['Selling Price']],
                         color='Brand',
                         color_discrete_sequence=px.colors.qualitative.Set3
                     )
@@ -672,7 +672,7 @@ def main():
                         st.markdown(f"<small>{item['Subcategory']}</small>", unsafe_allow_html=True)
                     
                     with cols[3]:
-                        st.markdown(f"**{currency} {item['Price']:.2f}**")
+                        st.markdown(f"**{currency} {int(item['Price'])}**")
                 
                 st.markdown("---")
     
@@ -734,7 +734,7 @@ def main():
                             
                             st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='product-price'>{currency} {product['Selling Price']:.2f}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='product-price'>{currency} {int(product['Selling Price'])}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='product-category'>Subcategory: {product['Subcategory']}</div>", unsafe_allow_html=True)
                             
                             st.markdown('</div>', unsafe_allow_html=True)
