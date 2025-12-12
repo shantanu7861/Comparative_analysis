@@ -201,58 +201,63 @@ def load_data(file_path=None):
     """Load and preprocess the Excel data"""
     try:
         if file_path is None:
-            # Try to load default file
             default_path = Path("ka.xlsx")
             if default_path.exists():
                 df = pd.read_excel(default_path, sheet_name="Sheet1")
             else:
-                # Create dummy data for demonstration
                 return create_dummy_data()
         else:
             df = pd.read_excel(file_path, sheet_name="Sheet1")
         
-        # Clean column names and handle case sensitivity
+        # Clean column names
         df.columns = df.columns.str.strip()
         
         # Standardize column names
         column_mapping = {}
         for col in df.columns:
-            if 'image' in col.lower():
+            col_lower = col.lower()
+            if 'image' in col_lower or 'img' in col_lower or 'url' in col_lower:
                 column_mapping[col] = 'Image_URL'
-            elif 'selling' in col.lower() and 'price' in col.lower():
+            elif 'price' in col_lower:
                 column_mapping[col] = 'Selling Price'
-            elif col.lower() in ['brand', 'title', 'link', 'category', 'subcategory']:
-                column_mapping[col] = col.capitalize()
+            elif 'brand' in col_lower:
+                column_mapping[col] = 'Brand'
+            elif 'title' in col_lower or 'name' in col_lower or 'product' in col_lower:
+                column_mapping[col] = 'Title'
+            elif 'subcategory' in col_lower or 'sub' in col_lower:
+                column_mapping[col] = 'Subcategory'
         
         df = df.rename(columns=column_mapping)
         
-        # Ensure required columns exist
-        required_columns = ['Link', 'Image_URL', 'Brand', 'Title', 'Selling Price', 'Category', 'Subcategory']
+        # Check required columns
+        required_columns = ['Image_URL', 'Brand', 'Title', 'Selling Price', 'Subcategory']
         missing_columns = [col for col in required_columns if col not in df.columns]
         
         if missing_columns:
             st.error(f"❌ Missing required columns: {', '.join(missing_columns)}")
-            st.info("Required columns: Link, Image_URL, Brand, Title, Selling Price, Category, Subcategory")
+            st.info("Required columns: Image_URL, Brand, Title, Selling Price, Subcategory")
             return create_dummy_data()
         
         # Clean data
         df['Brand'] = df['Brand'].astype(str).str.strip()
         df['Title'] = df['Title'].astype(str).str.strip()
-        df['Category'] = df['Category'].astype(str).str.strip()
         df['Subcategory'] = df['Subcategory'].astype(str).str.strip()
         
         # Convert price to numeric
         df['Selling Price'] = pd.to_numeric(
             df['Selling Price'].astype(str)
-            .str.replace('RM', '')
-            .str.replace('$', '')
-            .str.replace(',', '')
+            .str.replace('RM', '', regex=False)
+            .str.replace('$', '', regex=False)
+            .str.replace('€', '', regex=False)
+            .str.replace('£', '', regex=False)
+            .str.replace('₹', '', regex=False)
+            .str.replace(',', '', regex=False)
             .str.strip(), 
             errors='coerce'
         )
         
-        # Remove rows with missing critical data
-        df = df.dropna(subset=['Brand', 'Selling Price', 'Title', 'Category', 'Subcategory'])
+        # Remove rows with missing data
+        df = df.dropna(subset=['Brand', 'Selling Price', 'Title', 'Subcategory'])
         
         return df
     
@@ -265,7 +270,6 @@ def create_dummy_data():
     np.random.seed(42)
     
     data = {
-        'Link': [f'https://example.com/product_{i}' for i in range(50)],
         'Image_URL': [f'https://via.placeholder.com/300x400.png?text=Shoe+{i}' for i in range(50)],
         'Brand': np.random.choice(['London Rag', 'Rag & Co', 'Steve Madden', 'Aldo', 'Nine West', 'Call It Spring'], 50),
         'Title': np.random.choice([
@@ -275,7 +279,6 @@ def create_dummy_data():
             "Wedge Espadrilles", "Mary Jane Flats", "Athletic Running Sneakers"
         ], 50),
         'Selling Price': np.random.uniform(80, 300, 50).round(2),
-        'Category': np.random.choice(['BOOTS', 'HEELS', 'FLATS', 'SNEAKERS', 'SANDALS'], 50),
         'Subcategory': np.random.choice([
             'Ankle Boots', 'Knee-High Boots', 'Pumps & Court Shoes', 'Stilettos', 
             'Ballet Flats', 'Loafers', 'Fashion Sneakers', 'Flat Sandals', 'Heeled Sandals'
@@ -302,6 +305,9 @@ def calculate_metrics(df, brands):
 
 # ========== MAIN APP ==========
 def main():
+    # Set default currency
+    currency = "₹"
+    
     # Header
     st.markdown("""
     <div class="main-header">
@@ -312,21 +318,15 @@ def main():
     
     # ========== SIDEBAR ==========
     with st.sidebar:
-        st.image("https://via.placeholder.com/250x80.png?text=London+Rag", use_container_width=True)
+        st.image("https://via.placeholder.com/250x80.png?text=London+Rag", width='stretch')
         st.markdown("### 📊 Dashboard Controls")
         
         # File uploader
         uploaded_file = st.file_uploader(
             "Upload Excel File", 
             type=['xlsx', 'xls'], 
-            help="Upload your competitive data file with Category and Subcategory columns"
+            help="Upload your competitive data file with Subcategory column"
         )
-        
-        st.markdown("---")
-        
-        # Currency selector
-        st.markdown("### 💱 Currency")
-        currency = st.selectbox("Select Currency", ["RM", "$", "€", "£", "₹"], index=0)
         
         st.markdown("---")
         
@@ -336,15 +336,11 @@ def main():
         else:
             df = load_data()
         
-        st.success(f"✅ Loaded {len(df)} products")
-        
-        # Verify required columns exist
-        required_cols = ['Category', 'Subcategory']
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        
-        if missing_cols:
-            st.error(f"❌ Missing columns: {', '.join(missing_cols)}")
+        if len(df) == 0:
+            st.error("❌ No valid data loaded. Please check your Excel file format.")
             st.stop()
+        
+        st.success(f"✅ Loaded {len(df)} products")
         
         # Our Brands Filter
         st.markdown("### 🏷️ Our Brands")
@@ -367,23 +363,12 @@ def main():
         # Filters
         st.markdown("### 🔍 Filters")
         
-        # Category filter
-        all_categories = ['All'] + sorted(df['Category'].unique().tolist())
-        selected_category = st.selectbox("Main Category", all_categories)
-        
         # Subcategory filter
-        if selected_category != 'All':
-            filtered_subcats = df[df['Category'] == selected_category]['Subcategory'].unique().tolist()
-            all_subcategories = ['All'] + sorted(filtered_subcats)
-        else:
-            all_subcategories = ['All'] + sorted(df['Subcategory'].unique().tolist())
-        
+        all_subcategories = ['All'] + sorted(df['Subcategory'].unique().tolist())
         selected_subcategory = st.selectbox("Subcategory", all_subcategories)
         
         # Apply filters
         filtered_df = df.copy()
-        if selected_category != 'All':
-            filtered_df = filtered_df[filtered_df['Category'] == selected_category]
         if selected_subcategory != 'All':
             filtered_df = filtered_df[filtered_df['Subcategory'] == selected_subcategory]
         
@@ -418,9 +403,7 @@ def main():
     filter_text = f"""
     <div class="filter-display">
         <h3>🔍 Active Filters</h3>
-        <span class="filter-tag">💱 Currency: {currency}</span>
         <span class="filter-tag">🏷️ Our Brands: {', '.join(selected_our_brands)}</span>
-        <span class="filter-tag">📂 Category: {selected_category}</span>
         <span class="filter-tag">📌 Subcategory: {selected_subcategory}</span>
         <span class="filter-tag">⚔️ Competitors: {', '.join(selected_competitors) if selected_competitors else 'None'}</span>
     </div>
@@ -486,6 +469,7 @@ def main():
                     st.metric("Products", metrics[brand]['total_products'])
     
     # ========== TAB 2: CHARTS ==========
+# ========== TAB 2: CHARTS ==========
     with tab2:
         st.markdown("### 📊 Visual Analysis")
         
@@ -524,7 +508,7 @@ def main():
             margin=dict(t=80, b=60, l=60, r=40),
             yaxis=dict(gridcolor='rgba(128,128,128,0.2)', zeroline=False)
         )
-        st.plotly_chart(fig_price, use_container_width=True)
+        st.plotly_chart(fig_price, width='stretch', key="avg_price_chart")
         
         # Price Distribution Comparison
         st.markdown("---")
@@ -557,7 +541,90 @@ def main():
             margin=dict(t=40, b=60, l=60, r=40),
             yaxis=dict(gridcolor='rgba(128,128,128,0.2)', zeroline=False)
         )
-        st.plotly_chart(fig_box, use_container_width=True)
+        st.plotly_chart(fig_box, width='stretch', key="price_distribution_chart")
+        
+        # Price Extremes Table
+        st.markdown("---")
+        st.markdown("#### 💰 Highest & Lowest Priced Products by Brand")
+        
+        # Create table data
+        price_extremes_data = []
+        for brand in all_selected_brands:
+            brand_data = filtered_df[filtered_df['Brand'] == brand]
+            
+            if len(brand_data) > 0:
+                # Get max price product
+                max_product = brand_data.loc[brand_data['Selling Price'].idxmax()]
+                # Get min price product
+                min_product = brand_data.loc[brand_data['Selling Price'].idxmin()]
+                
+                price_extremes_data.append({
+                    'Brand': brand,
+                    'Type': 'Our Brand' if brand in selected_our_brands else 'Competitor',
+                    'Price_Type': 'Highest',
+                    'Product_Name': max_product['Title'],
+                    'Price': max_product['Selling Price'],
+                    'Image_URL': max_product['Image_URL'],
+                    'Subcategory': max_product['Subcategory']
+                })
+                
+                price_extremes_data.append({
+                    'Brand': brand,
+                    'Type': 'Our Brand' if brand in selected_our_brands else 'Competitor',
+                    'Price_Type': 'Lowest',
+                    'Product_Name': min_product['Title'],
+                    'Price': min_product['Selling Price'],
+                    'Image_URL': min_product['Image_URL'],
+                    'Subcategory': min_product['Subcategory']
+                })
+        
+        # Display as organized columns
+        for brand in all_selected_brands:
+            brand_extremes = [item for item in price_extremes_data if item['Brand'] == brand]
+            
+            if brand_extremes:
+                st.markdown(f"**{brand}** {'🏆' if brand in selected_our_brands else '⚔️'}")
+                
+                cols = st.columns([1, 3, 2, 2])
+                
+                with cols[0]:
+                    st.markdown("**Image**")
+                with cols[1]:
+                    st.markdown("**Product Name**")
+                with cols[2]:
+                    st.markdown("**Subcategory**")
+                with cols[3]:
+                    st.markdown("**Price**")
+                
+                for item in brand_extremes:
+                    cols = st.columns([1, 3, 2, 2])
+                    
+                    with cols[0]:
+                        image_url = str(item['Image_URL']).strip()
+                        if image_url and image_url != 'nan' and image_url.startswith(('http://', 'https://')):
+                            try:
+                                st.image(image_url, width=80)
+                            except:
+                                st.image("https://via.placeholder.com/80x80.png?text=N/A", width=80)
+                        else:
+                            st.image("https://via.placeholder.com/80x80.png?text=N/A", width=80)
+                    
+                    with cols[1]:
+                        price_badge = "🔴 HIGH" if item['Price_Type'] == 'Highest' else "🟢 LOW"
+                        st.markdown(f"{price_badge}")
+                        st.markdown(f"<small>{item['Product_Name'][:50]}{'...' if len(item['Product_Name']) > 50 else ''}</small>", unsafe_allow_html=True)
+                    
+                    with cols[2]:
+                        st.markdown(f"<small>{item['Subcategory']}</small>", unsafe_allow_html=True)
+                    
+                    with cols[3]:
+                        st.markdown(f"**{currency} {item['Price']:.2f}**")
+                
+                st.markdown("---")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+
     
     # ========== TAB 3: PRODUCT GALLERY ==========
     with tab3:
@@ -585,17 +652,24 @@ def main():
                         for _, product in brand_products.iterrows():
                             st.markdown('<div class="product-card">', unsafe_allow_html=True)
                             
-                            try:
-                                st.image(product['Image_URL'], use_container_width=True)
-                            except:
-                                st.image("https://via.placeholder.com/300x300.png?text=No+Image", use_container_width=True)
+                            # Better image handling with validation
+                            image_url = str(product.get('Image_URL', '')).strip()
+                            
+                            # Check if image URL is valid
+                            if image_url and image_url != 'nan' and image_url.startswith(('http://', 'https://')):
+                                try:
+                                    st.image(image_url, width='stretch')
+                                except Exception as e:
+                                    st.image("https://via.placeholder.com/300x400.png?text=Image+Unavailable", width='stretch')
+                                    st.caption(f"⚠️ Image load error")
+                            else:
+                                st.image("https://via.placeholder.com/300x400.png?text=No+Image", width='stretch')
                             
                             st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='product-price'>{currency} {product['Selling Price']:.2f}</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='product-category'>{product['Category']} → {product['Subcategory']}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='product-category'>Subcategory: {product['Subcategory']}</div>", unsafe_allow_html=True)
                             
-                            st.markdown(f"<a href='{product['Link']}' class='product-link' target='_blank'>View Product →</a>", unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
                     else:
                         st.info(f"No products available for {brand}")
