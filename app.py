@@ -633,7 +633,7 @@ def main():
                     )
                     
                     fig_subcat.update_layout(
-                        height=300,
+                        height=400,
                         showlegend=False,
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)',
@@ -803,12 +803,12 @@ def main():
                             # Check if image URL is valid
                             if image_url and image_url != 'nan' and image_url.startswith(('http://', 'https://')):
                                 try:
-                                    st.image(image_url, use_column_width=True)
+                                    st.image(image_url, use_container_width=True)
                                 except Exception as e:
-                                    st.image("https://via.placeholder.com/300x400.png?text=Image+Unavailable", use_column_width=True)
+                                    st.image("https://via.placeholder.com/300x400.png?text=Image+Unavailable", use_container_width=True)
                                     st.caption(f"⚠️ Image load error")
                             else:
-                                st.image("https://via.placeholder.com/300x400.png?text=No+Image", use_column_width=True)
+                                st.image("https://via.placeholder.com/300x400.png?text=No+Image", use_container_width=True)
                             
                             st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
