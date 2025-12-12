@@ -6,8 +6,6 @@ from plotly.subplots import make_subplots
 import numpy as np
 from pathlib import Path
 from datetime import datetime
-import warnings
-warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 # ========== PAGE CONFIGURATION ==========
 st.set_page_config(
@@ -313,8 +311,8 @@ def main():
     # Header
     st.markdown("""
     <div class="main-header">
-        <h1>👠 Women's Shoes Competitive Analysis</h1>
-        <p>Strategic pricing insights and product categorization</p>
+        <h1>👠 Myntra Competitive Analysis</h1>
+        
     </div>
     """, unsafe_allow_html=True)
     
@@ -365,14 +363,19 @@ def main():
         # Filters
         st.markdown("### 🔍 Filters")
         
-        # Subcategory filter
-        all_subcategories = ['All'] + sorted(df['Subcategory'].unique().tolist())
-        selected_subcategory = st.selectbox("Subcategory", all_subcategories)
+        # Subcategory filter - CHANGED TO MULTISELECT
+        all_subcategories = sorted(df['Subcategory'].unique().tolist())
+        selected_subcategories = st.multiselect(
+            "Select Subcategories",
+            all_subcategories,
+            default=all_subcategories,
+            help="Select one or multiple subcategories"
+        )
         
         # Apply filters
         filtered_df = df.copy()
-        if selected_subcategory != 'All':
-            filtered_df = filtered_df[filtered_df['Subcategory'] == selected_subcategory]
+        if selected_subcategories:
+            filtered_df = filtered_df[filtered_df['Subcategory'].isin(selected_subcategories)]
         
         # Competitor brand selection
         all_brands = sorted(filtered_df['Brand'].unique().tolist())
@@ -402,11 +405,20 @@ def main():
         st.markdown(f"**Filtered Results:** {len(filtered_df)} products")
     
     # ========== FILTER DISPLAY ==========
+    # Format subcategory display
+    if selected_subcategories:
+        if len(selected_subcategories) <= 3:
+            subcategory_display = ', '.join(selected_subcategories)
+        else:
+            subcategory_display = f"{len(selected_subcategories)} subcategories"
+    else:
+        subcategory_display = "All"
+    
     filter_text = f"""
     <div class="filter-display">
         <h3>🔍 Active Filters</h3>
         <span class="filter-tag">🏷️ Our Brands: {', '.join(selected_our_brands)}</span>
-        <span class="filter-tag">📌 Subcategory: {selected_subcategory}</span>
+        <span class="filter-tag">📌 Subcategories: {subcategory_display}</span>
         <span class="filter-tag">⚔️ Competitors: {', '.join(selected_competitors) if selected_competitors else 'None'}</span>
     </div>
     """
@@ -471,7 +483,6 @@ def main():
                     st.metric("Products", metrics[brand]['total_products'])
     
     # ========== TAB 2: CHARTS ==========
-# ========== TAB 2: CHARTS ==========
     with tab2:
         st.markdown("### 📊 Visual Analysis")
         
@@ -510,7 +521,7 @@ def main():
             margin=dict(t=80, b=60, l=60, r=40),
             yaxis=dict(gridcolor='rgba(128,128,128,0.2)', zeroline=False)
         )
-        st.plotly_chart(fig_price, width='stretch', key="avg_price_chart")
+        st.plotly_chart(fig_price, use_container_width=True)
         
         # Price Distribution Comparison
         st.markdown("---")
@@ -543,7 +554,48 @@ def main():
             margin=dict(t=40, b=60, l=60, r=40),
             yaxis=dict(gridcolor='rgba(128,128,128,0.2)', zeroline=False)
         )
-        st.plotly_chart(fig_box, width='stretch', key="price_distribution_chart")
+        st.plotly_chart(fig_box, use_container_width=True)
+        
+        # Subcategory Analysis
+        st.markdown("---")
+        st.markdown("#### 📊 Subcategory Analysis")
+        
+        if selected_subcategories:
+            # Create a chart for each selected subcategory
+            for subcategory in selected_subcategories:
+                subcategory_data = filtered_df[filtered_df['Subcategory'] == subcategory]
+                
+                if len(subcategory_data) > 0:
+                    st.markdown(f"**{subcategory}**")
+                    
+                    # Calculate average price by brand for this subcategory
+                    subcat_avg_price = subcategory_data.groupby('Brand')['Selling Price'].mean().reset_index()
+                    subcat_avg_price = subcat_avg_price.sort_values('Selling Price', ascending=False)
+                    
+                    fig_subcat = px.bar(
+                        subcat_avg_price,
+                        x='Brand',
+                        y='Selling Price',
+                        title=f"Average Price in {subcategory}",
+                        text=[f'{currency} {val:.2f}' for val in subcat_avg_price['Selling Price']],
+                        color='Brand',
+                        color_discrete_sequence=px.colors.qualitative.Set3
+                    )
+                    
+                    fig_subcat.update_traces(
+                        textposition='outside',
+                        textfont=dict(size=10, weight='bold')
+                    )
+                    
+                    fig_subcat.update_layout(
+                        height=300,
+                        showlegend=False,
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        margin=dict(t=50, b=40, l=40, r=40)
+                    )
+                    
+                    st.plotly_chart(fig_subcat, use_container_width=True)
         
         # Price Extremes Table
         st.markdown("---")
@@ -623,14 +675,27 @@ def main():
                         st.markdown(f"**{currency} {item['Price']:.2f}**")
                 
                 st.markdown("---")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-
     
     # ========== TAB 3: PRODUCT GALLERY ==========
     with tab3:
         st.markdown("### 🖼️ Product Showcase")
+        
+        # Add subcategory filter for gallery view
+        if selected_subcategories:
+            gallery_subcat = st.multiselect(
+                "Filter by Subcategory in Gallery",
+                selected_subcategories,
+                default=selected_subcategories,
+                key="gallery_subcat_filter"
+            )
+            
+            gallery_df = filtered_df[filtered_df['Subcategory'].isin(gallery_subcat)]
+        else:
+            gallery_df = filtered_df
+        
+        if len(gallery_df) == 0:
+            st.info("No products available for the selected subcategories in gallery view.")
+            return
         
         # Organize products by brand in columns
         if len(all_selected_brands) > 0:
@@ -646,8 +711,8 @@ def main():
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Get ALL products for this brand
-                    brand_products = filtered_df[filtered_df['Brand'] == brand]
+                    # Get products for this brand
+                    brand_products = gallery_df[gallery_df['Brand'] == brand]
                     
                     if len(brand_products) > 0:
                         # Display all products in vertical layout
@@ -660,12 +725,12 @@ def main():
                             # Check if image URL is valid
                             if image_url and image_url != 'nan' and image_url.startswith(('http://', 'https://')):
                                 try:
-                                    st.image(image_url, width='stretch')
+                                    st.image(image_url, use_column_width=True)
                                 except Exception as e:
-                                    st.image("https://via.placeholder.com/300x400.png?text=Image+Unavailable", width='stretch')
+                                    st.image("https://via.placeholder.com/300x400.png?text=Image+Unavailable", use_column_width=True)
                                     st.caption(f"⚠️ Image load error")
                             else:
-                                st.image("https://via.placeholder.com/300x400.png?text=No+Image", width='stretch')
+                                st.image("https://via.placeholder.com/300x400.png?text=No+Image", use_column_width=True)
                             
                             st.markdown(f"<div class='product-brand'>{product['Brand']}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='product-title'>{product['Title'][:60]}{'...' if len(product['Title']) > 60 else ''}</div>", unsafe_allow_html=True)
@@ -674,7 +739,7 @@ def main():
                             
                             st.markdown('</div>', unsafe_allow_html=True)
                     else:
-                        st.info(f"No products available for {brand}")
+                        st.info(f"No products available for {brand} in selected subcategories")
         else:
             st.info("No products available for the selected filters.")
 
