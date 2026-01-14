@@ -234,6 +234,11 @@ st.markdown("""
         color: white;
     }
     
+    .badge-soldout {
+        background: linear-gradient(135deg, #FF9800, #F57C00);
+        color: white;
+    }
+    
     .product-links {
         display: flex;
         gap: 10px;
@@ -382,7 +387,7 @@ def load_data(file_path=None):
                 column_mapping[col] = 'Image_URL'
             elif 'link' in col_lower or 'url' in col_lower:
                 column_mapping[col] = 'Product_Link'
-            elif 'qty' in col_lower or 'quantity' in col_lower:
+            elif 'qty' in col_lower or 'quantity' in col_lower or 'sold' in col_lower:
                 column_mapping[col] = 'Qty'
             elif 'title' in col_lower or 'name' in col_lower or 'product' in col_lower:
                 column_mapping[col] = 'Title'
@@ -427,8 +432,10 @@ def load_data(file_path=None):
             errors='coerce'
         ).fillna(0)
         
-        # Convert Qty to numeric
-        df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce').fillna(0).astype(int)
+        # Convert Qty to numeric - fix for sorting
+        df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce')
+        # Fill NaN values with 0 and convert to int
+        df['Qty'] = df['Qty'].fillna(0).astype(int)
         
         # Convert Avg Rating to numeric
         df['Avg Rating'] = pd.to_numeric(df['Avg Rating'], errors='coerce').fillna(0)
@@ -466,7 +473,7 @@ def create_dummy_data():
     data = {
         'Product_Link': [f'https://www.macys.com/shop/product/{i:06d}' for i in range(100)],
         'Image_URL': [f'https://via.placeholder.com/400x500.png?text=Product+{i+1}' for i in range(100)],
-        'Qty': np.random.randint(1, 1000, 100),
+        'Qty': np.random.randint(1, 500, 100),  # Quantity sold
         'Title': np.random.choice(product_titles, 100),
         'Brand': np.random.choice(brands, 100),
         'Current': np.random.uniform(19.99, 499.99, 100).round(2),
@@ -651,10 +658,10 @@ def main():
             format="%.1f stars"
         )
         
-        # Quantity Filter
-        st.markdown("### 📦 Quantity Sold")
+        # Quantity Filter - CHANGED TO QTY SOLD
+        st.markdown("### 📦 Minimum Quantity Sold")
         min_qty = st.number_input(
-            "Minimum quantity Sold",
+            "Minimum quantity sold",
             min_value=0,
             max_value=int(filtered_df['Qty'].max()),
             value=0,
@@ -695,7 +702,7 @@ def main():
         <span class="filter-tag">🏷️ Brands: {len(selected_brands)} selected</span>
         <span class="filter-tag">💰 Price: ${price_range[0]:.2f} - ${price_range[1]:.2f}</span>
         <span class="filter-tag">⭐ Min Rating: {min_rating} stars</span>
-        <span class="filter-tag">📦 Min Qty: {min_qty}+ units</span>
+        <span class="filter-tag">📦 Min Qty Sold: {min_qty}+ units</span>
     </div>
     """
     st.markdown(filter_text, unsafe_allow_html=True)
@@ -746,7 +753,7 @@ def main():
                     with col_a:
                         st.metric("Products", metrics[brand]['total_products'])
                     with col_b:
-                        st.metric("Total Qty", f"{metrics[brand]['total_qty']:,}")
+                        st.metric("Total Sold", f"{metrics[brand]['total_qty']:,}")
                     
                     st.metric(
                         "Avg Rating",
@@ -757,7 +764,7 @@ def main():
                     st.markdown(f"""
                     <small style="color: #666;">
                         Price Range: {currency}{metrics[brand]['min_price']:.2f} - {currency}{metrics[brand]['max_price']:.2f}<br>
-                        Avg Qty/Product: {metrics[brand]['avg_qty_per_product']}
+                        Avg Sold/Product: {metrics[brand]['avg_qty_per_product']}
                     </small>
                     """, unsafe_allow_html=True)
     
@@ -772,7 +779,7 @@ def main():
             sort_by = st.selectbox(
                 "Sort products by",
                 ['Price (High to Low)', 'Price (Low to High)', 'Rating (High to Low)', 
-                 'Quantity (High to Low)', 'Brand A-Z', 'Brand Z-A', 'Mixed Brands'],
+                 'Quantity Sold (High to Low)', 'Brand A-Z', 'Brand Z-A', 'Mixed Brands'],
                 index=6  # Default to Mixed Brands
             )
         
@@ -790,7 +797,7 @@ def main():
                 index=0  # Default to Brand Columns
             )
         
-        # Sort the data based on selection
+        # Sort the data based on selection - FIXED SORTING
         gallery_df = filtered_df.copy()
         
         if sort_by == 'Price (High to Low)':
@@ -799,7 +806,7 @@ def main():
             gallery_df = gallery_df.sort_values('Current', ascending=True)
         elif sort_by == 'Rating (High to Low)':
             gallery_df = gallery_df.sort_values('Avg Rating', ascending=False)
-        elif sort_by == 'Quantity (High to Low)':
+        elif sort_by == 'Quantity Sold (High to Low)':
             gallery_df = gallery_df.sort_values('Qty', ascending=False)
         elif sort_by == 'Brand A-Z':
             gallery_df = gallery_df.sort_values('Brand', ascending=True)
@@ -808,9 +815,12 @@ def main():
         elif sort_by == 'Mixed Brands':
             gallery_df = shuffle_mixed_brands(gallery_df, selected_brands)
         
+        # Reset index after sorting
+        gallery_df = gallery_df.reset_index(drop=True)
+        
         # Pagination
         total_products = len(gallery_df)
-        total_pages = (total_products + products_per_page - 1) // products_per_page
+        total_pages = max(1, (total_products + products_per_page - 1) // products_per_page)
         
         if total_pages > 1:
             page = st.number_input(
@@ -825,11 +835,17 @@ def main():
         
         start_idx = (page - 1) * products_per_page
         end_idx = min(start_idx + products_per_page, total_products)
-        page_df = gallery_df.iloc[start_idx:end_idx]
+        
+        if total_products > 0:
+            page_df = gallery_df.iloc[start_idx:end_idx]
+        else:
+            page_df = pd.DataFrame()
         
         st.markdown(f"**Showing {start_idx + 1}-{end_idx} of {total_products} products**")
         
-        if view_mode == 'Brand Columns':
+        if total_products == 0:
+            st.info("No products found with current filters.")
+        elif view_mode == 'Brand Columns':
             # Create one column for each selected brand
             brand_cols = st.columns(len(selected_brands))
             
@@ -846,8 +862,19 @@ def main():
                     brand_products = page_df[page_df['Brand'] == brand]
                     
                     if len(brand_products) > 0:
-                        # Sort brand products by price high to low
-                        brand_products = brand_products.sort_values('Current', ascending=False)
+                        # Apply sorting within brand column based on global sort selection
+                        if sort_by == 'Price (High to Low)':
+                            brand_products = brand_products.sort_values('Current', ascending=False)
+                        elif sort_by == 'Price (Low to High)':
+                            brand_products = brand_products.sort_values('Current', ascending=True)
+                        elif sort_by == 'Rating (High to Low)':
+                            brand_products = brand_products.sort_values('Avg Rating', ascending=False)
+                        elif sort_by == 'Quantity Sold (High to Low)':
+                            brand_products = brand_products.sort_values('Qty', ascending=False)
+                        elif sort_by == 'Brand A-Z':
+                            brand_products = brand_products.sort_values('Title', ascending=True)
+                        elif sort_by == 'Brand Z-A':
+                            brand_products = brand_products.sort_values('Title', ascending=False)
                         
                         # Display all products for this brand in the column
                         for _, product in brand_products.iterrows():
@@ -858,7 +885,9 @@ def main():
                             elif product['Avg Rating'] >= 4.5:
                                 badges.append(('badge-best', 'TOP RATED'))
                             elif product['Qty'] > filtered_df['Qty'].median() * 2:
-                                badges.append(('badge-value', 'HIGH STOCK'))
+                                badges.append(('badge-value', 'BEST SELLER'))
+                            elif product['Qty'] == 0:
+                                badges.append(('badge-soldout', 'NEW'))
                             
                             # Product card
                             st.markdown('<div class="product-card">', unsafe_allow_html=True)
@@ -893,12 +922,13 @@ def main():
                             # Price
                             st.markdown(f"<div class='product-price'>{currency}{product['Current']:.2f}</div>", unsafe_allow_html=True)
                             
-                            # Quantity
-                            if product['Qty'] > 0:
-                                qty_text = f"In Stock: {product['Qty']:,}"
-                                if product['Qty'] < 50:
-                                    qty_text += " 🔥"
-                                st.markdown(f"<div class='product-qty'>{qty_text}</div>", unsafe_allow_html=True)
+                            # Quantity Sold - CHANGED LABEL
+                            qty_text = f"Qty Sold: {product['Qty']:,}"
+                            if product['Qty'] == 0:
+                                qty_text = "New Product"
+                            elif product['Qty'] < 10:
+                                qty_text += " 🔥"
+                            st.markdown(f"<div class='product-qty'>{qty_text}</div>", unsafe_allow_html=True)
                             
                             # Rating
                             if product['Avg Rating'] > 0:
@@ -938,7 +968,9 @@ def main():
                     elif product['Avg Rating'] >= 4.5:
                         badges.append(('badge-best', 'TOP RATED'))
                     elif product['Qty'] > filtered_df['Qty'].median() * 2:
-                        badges.append(('badge-value', 'HIGH STOCK'))
+                        badges.append(('badge-value', 'BEST SELLER'))
+                    elif product['Qty'] == 0:
+                        badges.append(('badge-soldout', 'NEW'))
                     
                     # Product card
                     st.markdown('<div class="product-card">', unsafe_allow_html=True)
@@ -976,12 +1008,13 @@ def main():
                     # Price
                     st.markdown(f"<div class='product-price'>{currency}{product['Current']:.2f}</div>", unsafe_allow_html=True)
                     
-                    # Quantity
-                    if product['Qty'] > 0:
-                        qty_text = f"In Stock: {product['Qty']:,}"
-                        if product['Qty'] < 50:
-                            qty_text += " 🔥"
-                        st.markdown(f"<div class='product-qty'>{qty_text}</div>", unsafe_allow_html=True)
+                    # Quantity Sold - CHANGED LABEL
+                    qty_text = f"Qty Sold: {product['Qty']:,}"
+                    if product['Qty'] == 0:
+                        qty_text = "New Product"
+                    elif product['Qty'] < 10:
+                        qty_text += " 🔥"
+                    st.markdown(f"<div class='product-qty'>{qty_text}</div>", unsafe_allow_html=True)
                     
                     # Rating
                     if product['Avg Rating'] > 0:
@@ -1035,7 +1068,11 @@ def main():
                     st.markdown(f"**{currency}{product['Current']:.2f}**")
                 
                 with cols[3]:
-                    st.markdown(f"📦 {product['Qty']:,}")
+                    # Show quantity sold
+                    qty_text = f"{product['Qty']:,} sold"
+                    if product['Qty'] == 0:
+                        qty_text = "New"
+                    st.markdown(qty_text)
                 
                 with cols[4]:
                     product_link = str(product.get('Product_Link', '')).strip()
