@@ -332,33 +332,6 @@ st.markdown("""
         color: white;
         border-color: #E31837;
     }
-    
-    /* Grid layout for gallery */
-    .gallery-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 25px;
-        margin-top: 20px;
-    }
-    
-    /* Brand column styling */
-    .brand-column {
-        background: #f8f9fa;
-        border-radius: 12px;
-        padding: 15px;
-        margin-bottom: 20px;
-        border: 2px solid #e6e6e6;
-    }
-    
-    .brand-title {
-        font-size: 20px;
-        font-weight: 700;
-        color: #0046BE;
-        margin-bottom: 15px;
-        text-align: center;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #E31837;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -533,7 +506,7 @@ def get_rating_stars(rating):
     return stars_html
 
 def shuffle_mixed_brands(df, brands):
-    """Shuffle products but maintain brand mixing"""
+    """Shuffle products but maintain brand mixing - ONLY for Mixed Brands sort option"""
     mixed_df = df.copy()
     
     # Group by brand first
@@ -557,6 +530,26 @@ def shuffle_mixed_brands(df, brands):
         mixed_df = pd.DataFrame(mixed_products)
     
     return mixed_df
+
+def apply_sorting(df, sort_by):
+    """Apply sorting based on the selected sort option"""
+    sorted_df = df.copy()
+    
+    if sort_by == 'Price (High to Low)':
+        sorted_df = sorted_df.sort_values('Current', ascending=False)
+    elif sort_by == 'Price (Low to High)':
+        sorted_df = sorted_df.sort_values('Current', ascending=True)
+    elif sort_by == 'Rating (High to Low)':
+        sorted_df = sorted_df.sort_values('Avg Rating', ascending=False)
+    elif sort_by == 'Quantity Sold (High to Low)':
+        sorted_df = sorted_df.sort_values('Qty', ascending=False)
+    elif sort_by == 'Brand A-Z':
+        sorted_df = sorted_df.sort_values('Brand', ascending=True)
+    elif sort_by == 'Brand Z-A':
+        sorted_df = sorted_df.sort_values('Brand', ascending=False)
+    # Mixed Brands will be handled separately
+    
+    return sorted_df.reset_index(drop=True)
 
 # ========== MAIN APP ==========
 def main():
@@ -797,23 +790,14 @@ def main():
                 index=0  # Default to Brand Columns
             )
         
-        # Sort the data based on selection - FIXED SORTING
+        # Apply sorting to the entire dataframe FIRST
         gallery_df = filtered_df.copy()
         
-        if sort_by == 'Price (High to Low)':
-            gallery_df = gallery_df.sort_values('Current', ascending=False)
-        elif sort_by == 'Price (Low to High)':
-            gallery_df = gallery_df.sort_values('Current', ascending=True)
-        elif sort_by == 'Rating (High to Low)':
-            gallery_df = gallery_df.sort_values('Avg Rating', ascending=False)
-        elif sort_by == 'Quantity Sold (High to Low)':
-            gallery_df = gallery_df.sort_values('Qty', ascending=False)
-        elif sort_by == 'Brand A-Z':
-            gallery_df = gallery_df.sort_values('Brand', ascending=True)
-        elif sort_by == 'Brand Z-A':
-            gallery_df = gallery_df.sort_values('Brand', ascending=False)
-        elif sort_by == 'Mixed Brands':
+        # Handle Mixed Brands separately
+        if sort_by == 'Mixed Brands':
             gallery_df = shuffle_mixed_brands(gallery_df, selected_brands)
+        else:
+            gallery_df = apply_sorting(gallery_df, sort_by)
         
         # Reset index after sorting
         gallery_df = gallery_df.reset_index(drop=True)
@@ -862,8 +846,11 @@ def main():
                     brand_products = page_df[page_df['Brand'] == brand]
                     
                     if len(brand_products) > 0:
-                        # Apply sorting within brand column based on global sort selection
-                        if sort_by == 'Price (High to Low)':
+                        # Apply the SAME sorting within brand column
+                        if sort_by == 'Mixed Brands':
+                            # Keep the mixed order as is
+                            pass
+                        elif sort_by == 'Price (High to Low)':
                             brand_products = brand_products.sort_values('Current', ascending=False)
                         elif sort_by == 'Price (Low to High)':
                             brand_products = brand_products.sort_values('Current', ascending=True)
@@ -1040,8 +1027,9 @@ def main():
                     st.markdown('</div>', unsafe_allow_html=True)
         
         else:  # List View
-            # Shuffle products for mixed brand display in list view
-            list_df = shuffle_mixed_brands(page_df, selected_brands)
+            # DO NOT shuffle for List View unless Mixed Brands is selected
+            # The sorting is already applied to page_df
+            list_df = page_df.copy()  # Use the already sorted page_df
             
             for _, product in list_df.iterrows():
                 cols = st.columns([1, 3, 1, 1, 1, 1])
@@ -1075,9 +1063,15 @@ def main():
                     st.markdown(qty_text)
                 
                 with cols[4]:
+                    st.markdown(f"⭐ {product['Avg Rating']:.1f}")
+                
+                with cols[5]:
                     product_link = str(product.get('Product_Link', '')).strip()
                     if product_link and product_link != 'nan' and product_link.startswith('http'):
                         st.markdown(f'<a href="{product_link}" target="_blank" class="product-link" style="padding: 5px 10px; font-size: 12px;">View</a>', 
+                                  unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<button class="product-link" disabled style="padding: 5px 10px; font-size: 12px;">No Link</button>', 
                                   unsafe_allow_html=True)
                 
                 st.markdown("---")
