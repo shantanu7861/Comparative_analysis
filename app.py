@@ -757,7 +757,7 @@ def main():
                     st.markdown(f"""
                     <small style="color: #666;">
                         Price Range: {currency}{metrics[brand]['min_price']:.2f} - {currency}{metrics[brand]['max_price']:.2f}<br>
-                        Avg Sold/Product: {metrics[brand]['avg_qty_per_product']}
+                       
                     </small>
                     """, unsafe_allow_html=True)
     
