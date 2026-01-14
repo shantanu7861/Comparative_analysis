@@ -652,9 +652,9 @@ def main():
         )
         
         # Quantity Filter
-        st.markdown("### 📦 Quantity Available")
+        st.markdown("### 📦 Quantity Sold")
         min_qty = st.number_input(
-            "Minimum quantity available",
+            "Minimum quantity Sold",
             min_value=0,
             max_value=int(filtered_df['Qty'].max()),
             value=0,
